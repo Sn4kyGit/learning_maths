@@ -1761,12 +1761,15 @@ body {
 
   .m-grid-container {
     width: 100%;
-    padding: 1.5rem;
+    padding: 1.5rem 1rem;
     background: white;
     border-radius: 28px;
     box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.1);
     position: relative;
-    overflow: hidden;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    display: flex;
+    justify-content: center;
   }
 
   .m-math-grid {
@@ -1788,6 +1791,8 @@ body {
     width: max-content;
     margin: 0 auto;
     position: relative;
+    /* Add padding-right to prevent € being cut off */
+    padding-right: 25px;
   }
 
   /* Grid dots at intersections */
@@ -1796,7 +1801,8 @@ body {
     position: absolute;
     top: 0;
     left: 0;
-    right: 0;
+    right: 25px;
+    /* Stay inside the grid padding */
     bottom: 0;
     background-image: radial-gradient(circle, #cbd5e1 1.5px, transparent 1.5px);
     background-size: 45px 45px;
@@ -1853,7 +1859,12 @@ body {
   .m-currency-mobile {
     position: absolute;
     right: -25px;
-    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 25px;
+    height: 100%;
+    font-size: 1.1rem;
     font-weight: 800;
     color: var(--primary);
   }
@@ -1900,41 +1911,46 @@ body {
   /* Floating Keypad */
   .m-floating-keypad-container {
     position: fixed;
-    bottom: 5rem;
-    /* Above the bottom nav */
+    bottom: 6rem;
+    /* Slightly higher for reachability */
     left: 0;
     right: 0;
-    padding: 0.75rem;
+    padding: 0 0.5rem;
     z-index: 100;
     pointer-events: none;
   }
 
   .m-floating-keypad {
-    max-width: 500px;
+    width: 100%;
+    max-width: 420px;
     margin: 0 auto;
-    background: rgba(255, 255, 255, 0.8);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 20px;
-    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 24px;
+    padding: 0.6rem;
     display: flex;
-    justify-content: space-between;
-    gap: 6px;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+    justify-content: center;
+    gap: 4px;
+    box-shadow: 0 12px 40px -10px rgba(0, 0, 0, 0.15);
     pointer-events: auto;
   }
 
   .m-keypad-key {
     flex: 1;
-    aspect-ratio: 1;
-    min-width: 32px;
+    height: 12vw;
+    max-height: 52px;
+    min-width: 0;
+    /* Allow shrinking */
     background: white;
     border: 1px solid #e2e8f0;
     border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.2rem;
+    font-size: 5vw;
+    max-font-size: 20px;
     font-weight: 800;
     color: #334155;
     box-shadow: 0 3px 0 #e2e8f0;
