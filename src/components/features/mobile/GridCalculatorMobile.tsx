@@ -41,12 +41,22 @@ export const GridCalculatorMobile: React.FC<GridCalculatorMobileProps> = ({
         const strB = formatNum(num2);
 
         const fillRow = (row: number, str: string) => {
-            // Fill from right to left
+            let foundSignificant = false;
+            // Iterate from left to right (start of string)
             for (let i = 0; i < str.length; i++) {
-                const char = str[str.length - 1 - i];
-                const gridCol = TOTAL_COLS - 1 - (i >= 2 ? i + 1 : i);
-                if (gridCol >= 0 && char !== '0') {
-                    initialGrid[`${row}-${gridCol}`] = char;
+                const char = str[i];
+                // Significant digits are anything after the first non-zero,
+                // OR any digit in the last 2 positions (decimals for money)
+                const isDecimalPlace = i >= str.length - 2;
+
+                if (char !== '0' || foundSignificant || isDecimalPlace) {
+                    foundSignificant = true;
+                    // Calculate column same as before: right-to-left mapping
+                    const reverseIdx = str.length - 1 - i;
+                    const gridCol = TOTAL_COLS - 1 - (reverseIdx >= 2 ? reverseIdx + 1 : reverseIdx);
+                    if (gridCol >= 0) {
+                        initialGrid[`${row}-${gridCol}`] = char;
+                    }
                 }
             }
         };
@@ -147,10 +157,14 @@ export const GridCalculatorMobile: React.FC<GridCalculatorMobileProps> = ({
 
     const hasContent = Object.keys(grid).some(key => (key.startsWith('2-') || key.startsWith('3-')) && grid[key]);
 
+    const gridTemplate = Array.from({ length: TOTAL_COLS })
+        .map((_, i) => i === COMMA_COL_INDEX ? '20px' : '45px')
+        .join(' ');
+
     return (
         <div className="m-karoheft-wrapper">
             <motion.div className="m-grid-container" animate={controls}>
-                <div className="m-math-grid" style={{ gridTemplateColumns: `repeat(${TOTAL_COLS}, 1fr)` }}>
+                <div className="m-math-grid" style={{ gridTemplateColumns: gridTemplate }}>
                     {/* Header: numbers a and b */}
                     {[0, 1].map(row => (
                         <React.Fragment key={row}>
