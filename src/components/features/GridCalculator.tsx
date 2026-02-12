@@ -86,60 +86,89 @@ export const GridCalculator: React.FC<GridCalculatorProps> = ({ a, b, op, onChec
         onCheck(isNaN(numericResult) ? 0 : numericResult);
     };
 
+    const clearGrid = () => {
+        setGrid(prev => {
+            const next = { ...prev };
+            for (let i = 0; i < COLS; i++) {
+                delete next[`2-${i}`]; // Clear carries
+                delete next[`3-${i}`]; // Clear results
+            }
+            return next;
+        });
+        // Refocus last cell
+        setTimeout(() => {
+            inputRefs.current[`3-${COLS - 1}`]?.focus();
+        }, 50);
+    };
+
+    const hasContent = Object.keys(grid).some(key => (key.startsWith('2-') || key.startsWith('3-')) && grid[key]);
+
     return (
         <div className="math-notebook">
             <div className="math-grid-container">
-                <div className="math-grid" style={{ gridTemplateColumns: `repeat(${COLS}, 1fr)` }}>
-                    {/* Header: numbers a and b are read-only */}
-                    {[0, 1].map(row => (
-                        <React.Fragment key={row}>
-                            {Array.from({ length: COLS }).map((_, col) => {
-                                const isOperatorCell = row === 1 && col === 0;
-                                return (
-                                    <div
-                                        key={`${row}-${col}`}
-                                        className={`karo-cell static ${row === 1 ? 'row-b' : ''}`}
-                                    >
-                                        {isOperatorCell ? <span className="grid-operator">{op}</span> : (grid[`${row}-${col}`] || '')}
-                                    </div>
-                                );
-                            })}
-                        </React.Fragment>
-                    ))}
+                <div className="math-grid-wrapper">
+                    <div className="math-grid" style={{ gridTemplateColumns: `repeat(${COLS}, 1fr)` }}>
+                        {/* Header: numbers a and b are read-only */}
+                        {[0, 1].map(row => (
+                            <React.Fragment key={row}>
+                                {Array.from({ length: COLS }).map((_, col) => {
+                                    const isOperatorCell = row === 1 && col === 0;
+                                    return (
+                                        <div
+                                            key={`${row}-${col}`}
+                                            className={`karo-cell static ${row === 1 ? 'row-b' : ''}`}
+                                        >
+                                            {isOperatorCell ? <span className="grid-operator">{op}</span> : (grid[`${row}-${col}`] || '')}
+                                        </div>
+                                    );
+                                })}
+                            </React.Fragment>
+                        ))}
 
-                    {/* Rechenstrich border handled via .row-b class in CSS */}
+                        {/* Rechenstrich border handled via .row-b class in CSS */}
 
-                    {/* Carry Row (Merkzahlen) */}
-                    {Array.from({ length: COLS }).map((_, col) => (
-                        <div key={`carry-${col}`} className="karo-cell carry">
-                            <input
-                                ref={el => { inputRefs.current[`2-${col}`] = el; }}
-                                type="text"
-                                maxLength={1}
-                                value={grid[`2-${col}`] || ''}
-                                onChange={(e) => handleInputChange(2, col, e.target.value)}
-                                onKeyDown={(e) => handleKeyDown(e, 2, col)}
-                                className="carry-input"
-                                disabled={status === 'correct' || status === 'failed'}
-                            />
-                        </div>
-                    ))}
+                        {/* Carry Row (Merkzahlen) */}
+                        {Array.from({ length: COLS }).map((_, col) => (
+                            <div key={`carry-${col}`} className="karo-cell carry">
+                                <input
+                                    ref={el => { inputRefs.current[`2-${col}`] = el; }}
+                                    type="text"
+                                    maxLength={1}
+                                    value={grid[`2-${col}`] || ''}
+                                    onChange={(e) => handleInputChange(2, col, e.target.value)}
+                                    onKeyDown={(e) => handleKeyDown(e, 2, col)}
+                                    className="carry-input"
+                                    disabled={status === 'correct' || status === 'failed'}
+                                />
+                            </div>
+                        ))}
 
-                    {/* Result Row */}
-                    {Array.from({ length: COLS }).map((_, col) => (
-                        <div key={`result-${col}`} className={`karo-cell result ${status}`}>
-                            <input
-                                ref={el => { inputRefs.current[`3-${col}`] = el; }}
-                                type="text"
-                                maxLength={1}
-                                value={grid[`3-${col}`] || ''}
-                                onChange={(e) => handleInputChange(3, col, e.target.value)}
-                                onKeyDown={(e) => handleKeyDown(e, 3, col)}
-                                className="result-input"
-                                disabled={status === 'correct' || status === 'failed'}
-                            />
-                        </div>
-                    ))}
+                        {/* Result Row */}
+                        {Array.from({ length: COLS }).map((_, col) => (
+                            <div key={`result-${col}`} className={`karo-cell result ${status}`}>
+                                <input
+                                    ref={el => { inputRefs.current[`3-${col}`] = el; }}
+                                    type="text"
+                                    maxLength={1}
+                                    value={grid[`3-${col}`] || ''}
+                                    onChange={(e) => handleInputChange(3, col, e.target.value)}
+                                    onKeyDown={(e) => handleKeyDown(e, 3, col)}
+                                    className="result-input"
+                                    disabled={status === 'correct' || status === 'failed'}
+                                />
+                            </div>
+                        ))}
+                    </div>
+
+                    {(hasContent || status === 'wrong') && status !== 'correct' && (
+                        <button
+                            className="grid-reset-btn"
+                            onClick={clearGrid}
+                            title="Löschen"
+                        >
+                            ✕
+                        </button>
+                    )}
                 </div>
             </div>
 

@@ -423,6 +423,41 @@ body {
   border: 2px solid #cbd5e1;
 }
 
+.math-grid-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.grid-reset-btn {
+  position: absolute;
+  right: -3.5rem;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: var(--error);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 0 #991b1b;
+  font-size: 1.25rem;
+  transition: all 0.1s;
+  z-index: 10;
+}
+
+.grid-reset-btn:hover {
+  background: #dc2626;
+  transform: scale(1.1);
+}
+
+.grid-reset-btn:active {
+  transform: translateY(2px) scale(1.1);
+  box-shadow: 0 2px 0 #991b1b;
+}
+
 .math-grid {
   display: grid;
   gap: 0;
