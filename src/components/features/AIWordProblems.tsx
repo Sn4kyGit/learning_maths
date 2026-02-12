@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { generateAIWordProblem } from '../../services/OpenRouterService';
 import type { AIProblem, Difficulty } from '../../services/OpenRouterService';
 import { PREDEFINED_PROBLEMS } from '../../data/predefinedProblems';
-import { Brain, Send, CheckCircle2, XCircle, RefreshCcw, ImageIcon } from 'lucide-react';
+import { CheckCircle2, XCircle, RefreshCcw, ImageIcon, SendHorizonal, Star } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 
@@ -18,7 +18,10 @@ export const AIWordProblems = () => {
     const [hasStarted, setHasStarted] = useState(false);
 
     const [streak, setStreak] = useState(0);
-    const [bestStreak, setBestStreak] = useState(0);
+    const [bestStreak, setBestStreak] = useState<number>(() => {
+        const saved = localStorage.getItem('wordproblems_bestStreak');
+        return saved ? parseInt(saved) : 0;
+    });
 
     // Problem Pool state - initialized with predefined problems
     const [pool, setPool] = useState<Record<Difficulty, AIProblem[]>>({
@@ -27,17 +30,7 @@ export const AIWordProblems = () => {
         hard: [...PREDEFINED_PROBLEMS.hard]
     });
 
-    // Background refill check on mount
-    useEffect(() => {
-        refillPool('easy');
-        refillPool('medium');
-        refillPool('hard');
-
-        const savedBest = localStorage.getItem('wordproblems_bestStreak');
-        if (savedBest) setBestStreak(parseInt(savedBest));
-    }, []);
-
-    const refillPool = async (diff: Difficulty) => {
+    const refillPool = useCallback(async (diff: Difficulty) => {
         const currentCount = pool[diff].length;
         if (currentCount >= POOL_SIZE) return;
 
@@ -58,7 +51,14 @@ export const AIWordProblems = () => {
         };
 
         refillBackground();
-    };
+    }, [pool]);
+
+    // Background refill check on mount
+    useEffect(() => {
+        refillPool('easy');
+        refillPool('medium');
+        refillPool('hard');
+    }, [refillPool]);
 
     const fetchNewProblem = async (diff: Difficulty = difficulty) => {
         setHasStarted(true);
@@ -110,8 +110,8 @@ export const AIWordProblems = () => {
 
         // Use local image if ID exists (predefined problem)
         if (problem.id) {
-            // Add timestamp to force reload and avoid caching old images
-            return `/images/problems/${problem.id}.jpg?t=${Date.now()}`;
+            // We only need to busting cache if the problem actually changes
+            return `/images/problems/${problem.id}.jpg?v=${problem.id}`;
         }
 
         return null; // No image for dynamic problems (or show a default placeholder if needed)
@@ -128,10 +128,12 @@ export const AIWordProblems = () => {
         confetti({
             particleCount: 120,
             spread: 80,
-            origin: { y: 0.5 }
+            origin: { y: 0.5 },
+            colors: ['#6366f1', '#f59e0b', '#06b6d4', '#10b981']
         });
 
-        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        const audioCtx = new AudioContextClass();
         const oscillator = audioCtx.createOscillator();
         const gainNode = audioCtx.createGain();
         oscillator.type = 'square';
@@ -157,6 +159,10 @@ export const AIWordProblems = () => {
         }
     };
 
+    const handleInputFocus = () => {
+        if (userInput === '?') setUserInput('');
+    };
+
     return (
         <div className="ai-problems-container">
             <AnimatePresence mode="wait">
@@ -169,11 +175,7 @@ export const AIWordProblems = () => {
                         className="ai-intro-card"
                     >
                         <div className="ai-intro-header">
-                            <div className="ai-icon-bg large">
-                                <Brain size={40} color="#6366f1" />
-                            </div>
-                            <h2>KI-Spezialaufgabe</h2>
-                            <p>Wähle einen Schwierigkeitsgrad, um zu starten:</p>
+                            <h2>Wähle einen Schwierigkeitsgrad, um zu starten:</h2>
                         </div>
                         <div className="difficulty-grid">
                             {(['easy', 'medium', 'hard'] as Difficulty[]).map((d) => (
@@ -185,11 +187,16 @@ export const AIWordProblems = () => {
                                     }}
                                     className={`diff-card ${d}`}
                                 >
+                                    <div className="stars-row">
+                                        {[...Array(d === 'easy' ? 1 : d === 'medium' ? 2 : 3)].map((_, i) => (
+                                            <Star key={i} size={24} fill="currentColor" strokeWidth={0} />
+                                        ))}
+                                    </div>
                                     <span className="diff-label">
                                         {d === 'easy' ? 'Einfach' : d === 'medium' ? 'Mittel' : 'Schwer'}
                                     </span>
                                     <span className="diff-desc">
-                                        {d === 'easy' ? 'Nur 3 Zahlen' : d === 'medium' ? '4 bis 6 Zahlen' : '6 bis 8 Zahlen'}
+                                        {d === 'easy' ? '3 Zahlen' : d === 'medium' ? '4-6 Zahlen' : '6-8 Zahlen'}
                                     </span>
                                 </button>
                             ))}
@@ -201,7 +208,7 @@ export const AIWordProblems = () => {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="loading-container"
+                        className="ai-loading-container"
                     >
                         <RefreshCcw className="spinner" size={48} />
                         <p>KI denkt nach...</p>
@@ -211,100 +218,146 @@ export const AIWordProblems = () => {
                         key="content"
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className="ai-card has-image"
+                        className="ai-card"
                     >
                         <div className="ai-content-layout">
-                            <div className="ai-main-text">
-                                <div className="ai-header">
-                                    <div className="ai-icon-bg">
-                                        <Brain size={24} color="#6366f1" />
-                                    </div>
-                                    <div className="ai-title-group">
-                                        <h3>KI-Spezialaufgabe</h3>
-                                        <div className="difficulty-selector">
-                                            {(['easy', 'medium', 'hard'] as Difficulty[]).map((d) => (
-                                                <button
-                                                    key={d}
-                                                    onClick={() => changeDifficulty(d)}
-                                                    className={`diff-btn ${d} ${difficulty === d ? 'active' : ''}`}
-                                                    disabled={loading}
-                                                >
-                                                    {d === 'easy' ? 'Einfach' : d === 'medium' ? 'Mittel' : 'Schwer'}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <div className="streak-display" style={{ marginLeft: 'auto', display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'rgba(0,0,0,0.5)', fontWeight: 600, fontSize: '0.9rem' }}>
-                                            <span>🏆 Rekord: {bestStreak}</span>
-                                        </div>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#d97706', fontWeight: 800, fontSize: '1rem' }}>
-                                            <span>🔥 Serie: {streak}</span>
-                                        </div>
-                                    </div>
+                            {/* Top Bar: Difficulty & Stats */}
+                            <div className="ai-top-bar">
+                                <div className="difficulty-pills">
+                                    {(['easy', 'medium', 'hard'] as Difficulty[]).map((d) => (
+                                        <button
+                                            key={d}
+                                            onClick={() => changeDifficulty(d)}
+                                            className={`diff-pill ${d} ${difficulty === d ? 'active' : ''}`}
+                                            disabled={loading}
+                                        >
+                                            {d === 'easy' ? 'Einfach' : d === 'medium' ? 'Mittel' : 'Schwer'}
+                                        </button>
+                                    ))}
                                 </div>
 
-                                <div className="ai-story">
-                                    <p>{problem?.story}</p>
-                                </div>
-
-                                <div className="ai-question">
-                                    <p>{problem?.question}</p>
-                                </div>
-
-                                <div className="ai-interaction">
-                                    <div className="input-wrapper">
-                                        <input
-                                            type="text"
-                                            value={userInput}
-                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUserInput(e.target.value)}
-                                            placeholder="Wie viel Euro?"
-                                            className={`ai-input ${status}`}
-                                        />
-                                        <span className="currency-unit">€</span>
+                                <div className="stats-group">
+                                    <div className="stat-pill" title="Rekord">
+                                        <span className="stat-icon">🏆</span>
+                                        <span className="stat-value">{bestStreak}</span>
+                                        <span className="stat-label">Rekord</span>
                                     </div>
-                                    <button
-                                        onClick={handleCheck}
-                                        className="ai-submit-button"
-                                        disabled={!userInput || loading}
-                                    >
-                                        <Send size={20} />
-                                    </button>
-                                </div>
-
-                                {status !== 'idle' && (
-                                    <div className={`ai-feedback ${status}`}>
-                                        {status === 'correct' ? <CheckCircle2 size={24} /> : <XCircle size={24} />}
-                                        <span>{status === 'correct' ? 'Super gemacht!' : 'Versuch es noch einmal.'}</span>
-                                        {status === 'correct' && (
-                                            <button onClick={() => fetchNewProblem()} className="next-ai-btn">Nächste Aufgabe</button>
-                                        )}
+                                    <div className="stat-pill" title="Aktuelle Serie">
+                                        <span className="stat-icon">🔥</span>
+                                        <span className="stat-value">{streak}</span>
+                                        <span className="stat-label">Serie</span>
                                     </div>
-                                )}
+                                </div>
                             </div>
 
-                            <div className="ai-image-section">
-                                {problemImage && (
-                                    <div className="ai-comic-frame">
-                                        <div className="ai-img-loading">
-                                            <ImageIcon size={32} />
+                            <div className="ai-split-view">
+                                <div className="ai-reading-area">
+                                    {/* The "Story Card" - A quiet zone for reading */}
+                                    <div className="problem-card">
+                                        <div className="problem-story">
+                                            {problem?.story}
                                         </div>
-                                        <img
-                                            src={problemImage}
-                                            alt="Problem Illustration"
-                                            className="ai-comic-img"
-                                            onLoad={(e) => (e.currentTarget.style.opacity = '1')}
-                                            onError={(e) => {
-                                                e.currentTarget.style.display = 'none'; // Hide if missing
-                                            }}
-                                        />
+                                        <h2 className="problem-question">
+                                            {problem?.question}
+                                        </h2>
                                     </div>
-                                )}
+
+                                    {/* Interaction Row - Unified Split Input */}
+                                    <div className="solution-area">
+                                        <h3 className="solution-label">Gib die Lösung ein:</h3>
+                                        <div className="unified-input-group">
+                                            <div className="input-side">
+                                                <input
+                                                    type="text"
+                                                    inputMode="decimal"
+                                                    value={userInput}
+                                                    onChange={(e) => setUserInput(e.target.value)}
+                                                    onKeyDown={(e) => e.key === 'Enter' && handleCheck()}
+                                                    onFocus={handleInputFocus}
+                                                    className="solution-input"
+                                                    disabled={status === 'correct'}
+                                                    autoFocus
+                                                />
+                                                <span className="unit-label">€</span>
+                                            </div>
+
+                                            {status !== 'correct' ? (
+                                                <button
+                                                    className="split-submit-btn"
+                                                    onClick={handleCheck}
+                                                    disabled={!userInput}
+                                                    title="Prüfen"
+                                                >
+                                                    <SendHorizonal size={24} />
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    className="split-submit-btn next"
+                                                    onClick={() => fetchNewProblem()}
+                                                    title="Nächste Aufgabe"
+                                                >
+                                                    <RefreshCcw size={24} />
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Status Message */}
+                                    <div className="status-feedback">
+                                        <AnimatePresence>
+                                            {status === 'correct' && (
+                                                <motion.div
+                                                    initial={{ opacity: 0, y: 10 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    exit={{ opacity: 0 }}
+                                                    className="feedback-pill success"
+                                                >
+                                                    <CheckCircle2 size={24} />
+                                                    <span>Perfekt gelöst!</span>
+                                                </motion.div>
+                                            )}
+                                            {status === 'wrong' && (
+                                                <motion.div
+                                                    initial={{ opacity: 0, x: -10 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    exit={{ opacity: 0 }}
+                                                    className="feedback-pill error"
+                                                >
+                                                    <XCircle size={24} />
+                                                    <span>Probier's noch einmal!</span>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
+                                    </div>
+                                </div>
+
+                                <div className="ai-illustration-area">
+                                    {problemImage && (
+                                        <motion.div
+                                            initial={{ rotate: -2, opacity: 0 }}
+                                            animate={{ rotate: 2, opacity: 1 }}
+                                            className="polaroid-frame"
+                                        >
+                                            <div className="img-placeholder">
+                                                <ImageIcon size={32} />
+                                            </div>
+                                            <img
+                                                src={problemImage}
+                                                alt="Illustration"
+                                                className="polaroid-img"
+                                                onLoad={(e) => (e.currentTarget.style.opacity = '1')}
+                                                onError={(e) => {
+                                                    e.currentTarget.style.display = 'none';
+                                                }}
+                                            />
+                                        </motion.div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </motion.div>
                 )}
             </AnimatePresence>
-        </div>
+        </div >
     );
 };

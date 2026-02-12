@@ -1,156 +1,188 @@
-import { useState, useEffect } from 'react';
-import { RefreshCcw } from 'lucide-react';
-import { motion } from 'framer-motion';
-import confetti from 'canvas-confetti';
+import { useState, useEffect, useCallback } from 'react';
+import { RefreshCcw, CheckCircle2, Trophy, Flame } from 'lucide-react';
 import { GridCalculator } from './GridCalculator';
+import confetti from 'canvas-confetti';
+import { motion, AnimatePresence } from 'framer-motion';
 
+// --- Types ---
 interface Task {
-    a: number;
-    b: number;
-    op: '+' | '-';
-    result: number;
+    id: string;
+    num1: number;
+    num2: number;
+    operator: '+' | '-';
+    type: 'money' | 'number';
 }
 
 export const ArithmeticTest = () => {
-    const [task, setTask] = useState<Task | null>(null);
-    const [status, setStatus] = useState<'idle' | 'correct' | 'wrong' | 'failed'>('idle');
+    // State
+    const [task, setTask] = useState<Task>(() => {
+        const isAddition = Math.random() > 0.5;
+        const n1 = Math.floor(Math.random() * 80000) + 1000;
+        const n2 = isAddition
+            ? Math.floor(Math.random() * (90000 - n1)) + 1000
+            : Math.floor(Math.random() * (n1 - 1000)) + 1000;
+
+        return {
+            id: Math.random().toString(36).substring(7),
+            num1: n1,
+            num2: n2,
+            operator: isAddition ? '+' : '-',
+            type: 'money'
+        };
+    });
     const [streak, setStreak] = useState(0);
-    const [bestStreak, setBestStreak] = useState(0);
-    const [attempts, setAttempts] = useState(0);
+    const [bestStreak, setBestStreak] = useState<number>(() => {
+        const saved = localStorage.getItem('arithmetic_bestStreak');
+        return saved ? parseInt(saved) : 0;
+    });
+    const [showSuccess, setShowSuccess] = useState(false);
 
-    useEffect(() => {
-        const savedBest = localStorage.getItem('arithmetic_bestStreak');
-        if (savedBest) setBestStreak(parseInt(savedBest));
-    }, []);
+    // Task Generation Logic
+    const generateTask = useCallback(() => {
+        const isAddition = Math.random() > 0.5;
+        let n1, n2;
 
-    const generateTask = () => {
-        const isPlus = Math.random() > 0.5;
-        let a, b, result;
-
-        if (isPlus) {
-            a = Math.floor(Math.random() * 500) + 1;
-            b = Math.floor(Math.random() * (1000 - a)) + 1;
-            result = a + b;
+        // Generate values in Cents to avoid floating point issues
+        if (isAddition) {
+            n1 = Math.floor(Math.random() * 80000) + 1000; // 10.00 to 810.00
+            n2 = Math.floor(Math.random() * (90000 - n1)) + 1000;
         } else {
-            a = Math.floor(Math.random() * 900) + 100;
-            b = Math.floor(Math.random() * a) + 1;
-            result = a - b;
+            n1 = Math.floor(Math.random() * 80000) + 2000;
+            n2 = Math.floor(Math.random() * (n1 - 1000)) + 1000;
         }
 
-        setTask({ a, b, op: isPlus ? '+' : '-', result });
-        setStatus('idle');
-        setAttempts(0);
-    };
+        const newTask: Task = {
+            id: Math.random().toString(36).substring(7),
+            num1: n1,
+            num2: n2,
+            operator: isAddition ? '+' : '-',
+            type: 'money'
+        };
 
-
-    useEffect(() => {
-        generateTask();
+        setTask(newTask);
+        setShowSuccess(false);
     }, []);
 
-    const triggerSuccess = () => {
+    // Initial Load - No longer needed as we initialize in useState
+    // but we can keep it if we want to ensure any other setup
+    useEffect(() => {
+        // Clear success state on mount if needed
+    }, []);
+
+    const handleSuccess = () => {
         const newStreak = streak + 1;
         setStreak(newStreak);
         if (newStreak > bestStreak) {
             setBestStreak(newStreak);
             localStorage.setItem('arithmetic_bestStreak', newStreak.toString());
         }
-
+        setShowSuccess(true);
         confetti({
             particleCount: 100,
-            spread: 60,
-            origin: { y: 0.7 }
+            spread: 70,
+            origin: { y: 0.6 },
+            colors: ['#6366f1', '#f59e0b', '#06b6d4', '#10b981']
         });
-
-        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-        const oscillator = audioCtx.createOscillator();
-        const gainNode = audioCtx.createGain();
-        oscillator.type = 'triangle';
-        oscillator.frequency.setValueAtTime(440, audioCtx.currentTime); // A4
-        oscillator.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.1); // A5
-        gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
-        oscillator.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-        oscillator.start();
-        oscillator.stop(audioCtx.currentTime + 0.2);
     };
 
-    const checkResult = (val: number) => {
-        if (!task) return;
-
-        if (Math.abs(val - task.result) < 0.01) {
-            setStatus('correct');
-            triggerSuccess();
-        } else {
-            const newAttempts = attempts + 1;
-            setAttempts(newAttempts);
-
-            if (newAttempts >= 3) {
-                setStatus('failed');
-                setStreak(0);
-            } else {
-                setStatus('wrong');
-                setTimeout(() => setStatus('idle'), 1500);
-            }
-        }
+    const handleFailure = () => {
+        setStreak(0);
     };
 
     return (
-        <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="arithmetic-container"
-        >
-            <div className="arithmetic-card">
-                <div className="streak-display" style={{ position: 'absolute', top: '1rem', left: '1.5rem', display: 'flex', gap: '1rem', alignItems: 'center', zIndex: 10 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'rgba(0,0,0,0.5)', fontWeight: 600, fontSize: '0.9rem' }}>
-                        <span>🏆 Rekord: {bestStreak}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#d97706', fontWeight: 800, fontSize: '1rem' }}>
-                        <span>🔥 Serie: {streak}</span>
-                    </div>
+        <div className="arithmetic-card">
+            {/* Background Decoration */}
+            <div className="at-bg-deco" />
+
+            {/* Header Section */}
+            <div className="at-header-section">
+                <motion.h2
+                    initial={{ y: -20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    className="at-headline"
+                >
+                    Löse die Aufgaben ordentlich wie im Heft! 📝
+                </motion.h2>
+
+                {/* Stats Row */}
+                <div className="at-stats-row">
+                    <motion.div
+                        whileHover={{ scale: 1.05 }}
+                        className="at-stat-card record"
+                    >
+                        <Trophy size={24} className="at-icon record" />
+                        <span className="at-label">REKORD</span>
+                        <span className="at-value">{bestStreak}</span>
+                    </motion.div>
+
+                    <motion.div
+                        whileHover={{ scale: 1.05 }}
+                        className="at-stat-card streak"
+                    >
+                        <Flame size={24} className="at-icon streak" />
+                        <span className="at-label">SERIE</span>
+                        <span className="at-value">{streak}</span>
+                    </motion.div>
                 </div>
+            </div>
 
-                {task && (
-                    <div className="arithmetic-form">
-                        <GridCalculator
-                            a={task.a}
-                            b={task.b}
-                            op={task.op}
-                            onCheck={(val) => checkResult(val)}
-                            status={status}
-                        />
-
-                        {status === 'correct' && (
-                            <div className="numpad-actions" style={{ marginTop: '1.5rem' }}>
-                                <motion.button
-                                    initial={{ scale: 0.9 }}
-                                    animate={{ scale: 1 }}
-                                    type="button"
-                                    onClick={generateTask}
-                                    className="action-btn success"
-                                >
-                                    Korrekt! Nächste
-                                </motion.button>
-                            </div>
-                        )}
-                        {status === 'failed' && (
-                            <div className="numpad-actions" style={{ marginTop: '1.5rem' }}>
-                                <button
-                                    type="button"
-                                    onClick={generateTask}
-                                    className="action-btn error"
-                                >
-                                    Leider falsch! (Lösung: {task.result}€)
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                )}
-                <button onClick={generateTask} className="refresh-task">
+            {/* Actions / Floating Elements */}
+            <div className="at-actions">
+                <button
+                    onClick={() => {
+                        setStreak(0);
+                        generateTask();
+                    }}
+                    className="at-refresh-btn"
+                    title="Neue Aufgabe (verliert Serie)"
+                >
                     <RefreshCcw size={20} />
                 </button>
             </div>
-        </motion.div>
+
+            {/* Success Message Overlay */}
+            <AnimatePresence>
+                {showSuccess && (
+                    <motion.div
+                        initial={{ scale: 0, rotate: -10, opacity: 0 }}
+                        animate={{ scale: 1, rotate: 0, opacity: 1 }}
+                        exit={{ scale: 0, opacity: 0 }}
+                        className="at-success-overlay"
+                    >
+                        <div className="at-success-message">
+                            <CheckCircle2 size={32} strokeWidth={3} />
+                            <span>KORREKT!</span>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Main Notebook Area */}
+            <div className="math-notebook mt-4">
+                <AnimatePresence mode="wait">
+                    {task && (
+                        <motion.div
+                            key={task.id}
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 1.05 }}
+                            transition={{ duration: 0.3 }}
+                            className="w-full flex justify-center"
+                        >
+                            <GridCalculator
+                                key={task.id}
+                                num1={task.num1}
+                                num2={task.num2}
+                                operator={task.operator}
+                                isMoney={task.type === 'money'}
+                                onSuccess={handleSuccess}
+                                onFailure={handleFailure}
+                                onNext={generateTask}
+                            />
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
+        </div>
     );
 };

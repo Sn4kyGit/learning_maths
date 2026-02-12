@@ -14,35 +14,48 @@ function App() {
   return (
     <div className="app-container">
       <header className="supermarket-header">
-        <h1>Mathe-Supermarkt</h1>
+        <motion.h1
+          initial={{ y: -50, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ type: "spring", stiffness: 100 }}
+        >
+          Mathe-Superhelden
+        </motion.h1>
       </header>
 
       <nav className="nav-bar">
         <button
           className={`nav-item ${activeTab === 'supermarket' ? 'active' : ''}`}
           onClick={() => setActiveTab('supermarket')}
+          title="Supermarkt"
         >
-          <Store size={18} /> <span>Supermarkt</span>
+          <Store size={28} strokeWidth={2.5} />
+          <span>Laden</span>
         </button>
         <button
           className={`nav-item ${activeTab === 'arithmetic' ? 'active' : ''}`}
           onClick={() => setActiveTab('arithmetic')}
+          title="Rechnen"
         >
-          <Calculator size={18} /> <span>Rechnen</span>
+          <Calculator size={28} strokeWidth={2.5} />
+          <span>Kasse</span>
         </button>
         <button
           className={`nav-item ${activeTab === 'ai' ? 'active' : ''}`}
           onClick={() => setActiveTab('ai')}
+          title="KI-Aufgaben"
         >
-          <Brain size={18} /> <span>KI-Aufgaben</span>
+          <Brain size={28} strokeWidth={2.5} />
+          <span>Sachaufgaben</span>
         </button>
       </nav>
 
       <motion.main
         key={activeTab}
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: "easeOut" }}
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 1.05 }}
+        transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
       >
         {activeTab === 'supermarket' && <MoneyDragDrop />}
         {activeTab === 'arithmetic' && <ArithmeticTest />}

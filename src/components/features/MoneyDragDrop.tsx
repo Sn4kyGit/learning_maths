@@ -1,207 +1,359 @@
 import { useState, useEffect } from 'react';
-import { Wallet as WalletIcon, RotateCcw, ArrowRight } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import {
+    DndContext,
+    useDraggable,
+    useDroppable,
+    DragOverlay,
+    useSensor,
+    useSensors,
+    MouseSensor,
+    TouchSensor,
+    DragStartEvent,
+    DragEndEvent
+} from '@dnd-kit/core';
+import { MoveLeft, RotateCcw, CheckCircle2, Trophy, Flame } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import type { MoneyDenomination, PlacedMoney } from '../../types/money';
+import { motion, AnimatePresence } from 'framer-motion';
 
+// --- Types ---
+type MoneyType = 'bill' | 'coin';
+
+interface MoneyDenomination {
+    value: number;
+    label: string;
+    type: MoneyType;
+    image: string; // Path to image
+}
+
+// --- Data ---
 const DENOMINATIONS: MoneyDenomination[] = [
-    { id: 'b200', value: 200, label: '200€', type: 'bill', imageUrl: '/assets/money/200_bill.png' },
-    { id: 'b100', value: 100, label: '100€', type: 'bill', imageUrl: '/assets/money/100_bill.png' },
-    { id: 'b50', value: 50, label: '50€', type: 'bill', imageUrl: '/assets/money/50_bill.png' },
-    { id: 'b20', value: 20, label: '20€', type: 'bill', imageUrl: '/assets/money/20_bill.png' },
-    { id: 'b10', value: 10, label: '10€', type: 'bill', imageUrl: '/assets/money/10_bill.png' },
-    { id: 'b5', value: 5, label: '5€', type: 'bill', imageUrl: '/assets/money/5_bill.png' },
-    { id: 'c2', value: 2, label: '2€', type: 'coin', imageUrl: '/assets/money/2_coin.png' },
-    { id: 'c1', value: 1, label: '1€', type: 'coin', imageUrl: '/assets/money/1_coin.png' },
-    { id: 'c05', value: 0.5, label: '50ct', type: 'coin', imageUrl: '/assets/money/50ct_coin.png' },
+    // Bills
+    // { value: 500, label: '500€', type: 'bill', image: '/assets/money/500_bill.png' }, // Missing
+    { value: 200, label: '200€', type: 'bill', image: '/assets/money/200_bill.png' },
+    { value: 100, label: '100€', type: 'bill', image: '/assets/money/100_bill.png' },
+    { value: 50, label: '50€', type: 'bill', image: '/assets/money/50_bill.png' },
+    { value: 20, label: '20€', type: 'bill', image: '/assets/money/20_bill.png' },
+    { value: 10, label: '10€', type: 'bill', image: '/assets/money/10_bill.png' },
+    { value: 5, label: '5€', type: 'bill', image: '/assets/money/5_bill.png' },
+    // Coins
+    { value: 2, label: '2€', type: 'coin', image: '/assets/money/2_coin.png' },
+    { value: 1, label: '1€', type: 'coin', image: '/assets/money/1_coin.png' },
+    { value: 0.5, label: '50ct', type: 'coin', image: '/assets/money/50ct_coin.png' },
+    { value: 0.2, label: '20ct', type: 'coin', image: '/assets/money/20ct_coin.png' },
+    { value: 0.1, label: '10ct', type: 'coin', image: '/assets/money/10ct_coin.png' },
+    { value: 0.05, label: '5ct', type: 'coin', image: '/assets/money/5ct_coin.png' },
+    // { value: 0.02, label: '2ct', type: 'coin', image: '/assets/money/2ct_coin.png' }, // Missing
+    // { value: 0.01, label: '1ct', type: 'coin', image: '/assets/money/1ct_coin.png' }, // Missing
 ];
 
 export const MoneyDragDrop = () => {
-    const [placedMoney, setPlacedMoney] = useState<PlacedMoney[]>([]);
+    // Game State
     const [targetAmount, setTargetAmount] = useState<number>(0);
+    const [currentAmount, setCurrentAmount] = useState<number>(0);
+    const [placedItems, setPlacedItems] = useState<MoneyDenomination[]>([]);
+    const [activeId, setActiveId] = useState<string | null>(null);
+    const [success, setSuccess] = useState(false);
+
+    // Stats
     const [streak, setStreak] = useState(0);
     const [bestStreak, setBestStreak] = useState(0);
-    const [isSolved, setIsSolved] = useState(false);
 
+    // Sensors with activation constraints to allow clicks
+    const sensors = useSensors(
+        useSensor(MouseSensor, {
+            activationConstraint: {
+                distance: 10, // Must move 10px to start drag
+            },
+        }),
+        useSensor(TouchSensor, {
+            activationConstraint: {
+                delay: 250,
+                tolerance: 5, // Must hold for 250ms or move less than 5px before drag starts
+            },
+        }),
+    );
+
+    // Init Logic
     useEffect(() => {
-        const savedBest = localStorage.getItem('moneyfiles_bestStreak');
+        const savedBest = localStorage.getItem('money_bestStreak');
         if (savedBest) setBestStreak(parseInt(savedBest));
-    }, []);
-
-    const currentTotal = placedMoney.reduce((sum: number, item) => sum + item.denom.value, 0);
-
-    const generateNewTask = () => {
-        let newAmount = 0;
-        let attempts = 0;
-
-        do {
-            const rand = Math.random();
-            if (rand < 0.4) {
-                // Easy: 5€ - 100€ (0.50€ steps) -> 10 to 200 halves
-                newAmount = (Math.floor(Math.random() * 191) + 10) / 2;
-            } else if (rand < 0.7) {
-                // Medium: 100€ - 500€ (1€ steps) -> 100 to 500
-                newAmount = Math.floor(Math.random() * 401) + 100;
-            } else {
-                // Hard: 500€ - 1000€ (5€ steps) -> 100 to 200 fives
-                newAmount = (Math.floor(Math.random() * 101) + 100) * 5;
-            }
-            attempts++;
-        } while (newAmount === targetAmount && attempts < 10);
-
-        setTargetAmount(newAmount);
-        setPlacedMoney([]);
-        setIsSolved(false);
-    };
-
-    const handleReset = () => {
-        setPlacedMoney([]);
-        setStreak(0);
-    };
-
-    const triggerSuccess = () => {
-        if (isSolved) return;
-        setIsSolved(true);
-
-        const newStreak = streak + 1;
-        setStreak(newStreak);
-        if (newStreak > bestStreak) {
-            setBestStreak(newStreak);
-            localStorage.setItem('moneyfiles_bestStreak', newStreak.toString());
-        }
-
-        confetti({
-            particleCount: 150,
-            spread: 70,
-            origin: { y: 0.6 },
-            colors: ['#10b981', '#f59e0b', '#3b82f6']
-        });
-
-        // Simple Web Audio success chime
-        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-        const oscillator = audioCtx.createOscillator();
-        const gainNode = audioCtx.createGain();
-
-        oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
-        oscillator.frequency.exponentialRampToValueAtTime(1046.50, audioCtx.currentTime + 0.2); // C6
-
-        gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
-
-        oscillator.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-
-        oscillator.start();
-        oscillator.stop(audioCtx.currentTime + 0.3);
-    };
-
-    useEffect(() => {
-        if (!isSolved && targetAmount > 0 && Math.abs(currentTotal - targetAmount) < 0.01) {
-            triggerSuccess();
-        }
-    }, [currentTotal, targetAmount, isSolved]);
-
-    useEffect(() => {
         generateNewTask();
     }, []);
 
-    const addMoney = (denom: MoneyDenomination) => {
-        if (isSolved) return; // Prevent adding more if already solved
-        const newItem = {
-            id: `${denom.id}-${Date.now()}`,
-            denom,
-            x: Math.random() * 100 - 50,
-            y: Math.random() * 100 - 50
-        };
-        setPlacedMoney([...placedMoney, newItem]);
+    const generateNewTask = () => {
+        // Generate a random amount between 1.50€ and 850.00€
+        const randomVal = (Math.floor(Math.random() * 850 * 100) + 150) / 100;
+        // Round to 2 decimals to be safe
+        const rounded = Math.round(randomVal * 100) / 100;
+
+        setTargetAmount(rounded);
+        setCurrentAmount(0);
+        setPlacedItems([]);
+        setSuccess(false);
     };
 
+    // Drag Logic
+    const handleDragStart = (event: DragStartEvent) => {
+        setActiveId(event.active.id as string);
+    };
 
+    const handleDragEnd = (event: DragEndEvent) => {
+        setActiveId(null);
+        const { active, over } = event;
 
-    return (
-        <div className="playground">
-            <aside className="wallet-section">
-                <h2><WalletIcon size={20} /> Geldbeutel</h2>
-                <p className="wallet-hint">Klick auf das Geld, um es auf den Tisch zu legen</p>
-                <div className="denominations-grid">
-                    {DENOMINATIONS.map(denom => (
-                        <button
-                            key={denom.id}
-                            className={`money-button ${denom.type}`}
-                            onClick={() => addMoney(denom)}
-                            title={denom.label}
-                            disabled={isSolved}
-                        >
-                            <img
-                                src={denom.imageUrl}
-                                alt={denom.label}
-                                className="wallet-money-image"
-                            />
-                            <span className="money-button-label">{denom.label}</span>
-                        </button>
-                    ))}
-                </div>
-            </aside>
+        if (over && over.id === 'drop-zone') {
+            // Find denomination
+            const denom = DENOMINATIONS.find(d => d.label === active.id);
+            if (denom) {
+                // Add to table
+                const newItems = [...placedItems, denom];
+                setPlacedItems(newItems);
 
-            <section className="main-area">
-                <div className="task-banner">
-                    <div className="streak-display" style={{ position: 'absolute', top: '1rem', right: '2rem', display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'rgba(255,255,255,0.9)', fontWeight: 600 }}>
-                            <span>🏆 Rekord: {bestStreak}</span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#fbbf24', fontWeight: 800, fontSize: '1.1rem' }}>
-                            <span>🔥 Serie: {streak}</span>
+                // Recalculate Total
+                const newTotal = newItems.reduce((acc, item) => acc + item.value, 0);
+                setCurrentAmount(Math.round(newTotal * 100) / 100);
+            }
+        }
+    };
+
+    // Check Win Condition
+    useEffect(() => {
+        if (!success && targetAmount > 0 && Math.abs(currentAmount - targetAmount) < 0.001) {
+            setSuccess(true);
+
+            // Updates Stats
+            const newStreak = streak + 1;
+            setStreak(newStreak);
+            if (newStreak > bestStreak) {
+                setBestStreak(newStreak);
+                localStorage.setItem('money_bestStreak', newStreak.toString());
+            }
+
+            confetti({
+                particleCount: 150,
+                spread: 70,
+                origin: { y: 0.6 },
+                colors: ['#6366f1', '#f59e0b', '#06b6d4', '#10b981']
+            });
+        }
+    }, [currentAmount, targetAmount, success, streak, bestStreak]);
+
+    const handleReset = () => {
+        setPlacedItems([]);
+        setCurrentAmount(0);
+        // Note: Resetting table doesn't break streak if they haven't won yet
+        // Only explicit failure would break streak, but here they just retry
+    };
+
+    // Click Handlers
+    const handleAddMoney = (denom: MoneyDenomination) => {
+        if (success) return; // Disable adding if already won
+
+        const newItems = [...placedItems, denom];
+        setPlacedItems(newItems);
+
+        // Recalculate Total
+        const newTotal = newItems.reduce((acc: number, item: MoneyDenomination) => acc + item.value, 0);
+        setCurrentAmount(Math.round(newTotal * 100) / 100);
+    };
+
+    const handleRemoveMoney = (indexToRemove: number) => {
+        if (success) return;
+
+        const newItems = placedItems.filter((_: MoneyDenomination, idx: number) => idx !== indexToRemove);
+        setPlacedItems(newItems);
+
+        // Recalculate Total
+        const newTotal = newItems.reduce((acc: number, item: MoneyDenomination) => acc + item.value, 0);
+        setCurrentAmount(Math.round(newTotal * 100) / 100);
+    };
+
+    // --- Sub-Components ---
+
+    // Draggable Source Item (Wallet)
+    const DraggableMoney = ({ denom }: { denom: MoneyDenomination }) => {
+        const { attributes, listeners, setNodeRef, transform } = useDraggable({
+            id: denom.label,
+            data: { denom }
+        });
+
+        const style = transform ? {
+            transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+            zIndex: 1000
+        } : undefined;
+
+        // Custom class for size adjustment based on type
+        const isBill = denom.type === 'bill';
+
+        return (
+            <button
+                ref={setNodeRef}
+                style={style}
+                {...listeners}
+                {...attributes}
+                className={`money-button ${isBill ? 'bill' : 'coin'}`}
+                title={`${denom.label} (Klicken zum Hinzufügen)`}
+                onClick={() => handleAddMoney(denom)}
+            >
+                <img src={denom.image} alt={denom.label} className="wallet-money-image" />
+                <span className="money-button-label">{denom.label}</span>
+            </button>
+        );
+    };
+
+    // Droppable Target (Table)
+    const DropZone = () => {
+        const { setNodeRef, isOver } = useDroppable({
+            id: 'drop-zone',
+        });
+
+        return (
+            <div
+                ref={setNodeRef}
+                className={`table-section ${isOver ? 'highlight' : ''}`}
+            >
+                {placedItems.length === 0 && (
+                    <div style={{
+                        width: '100%',
+                        height: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        opacity: 0.3,
+                        pointerEvents: 'none'
+                    }}>
+                        <div style={{ textAlign: 'center' }}>
+                            <MoveLeft size={48} className="animate-bounce-left" />
+                            <p>Lege das Geld hier ab</p>
                         </div>
                     </div>
+                )}
 
-                    <div className="task-tag">Deine Aufgabe</div>
-                    <h2 className="task-title">
-                        Lege diesen Betrag auf den Tisch <span className="target-price">{targetAmount.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>
+                <AnimatePresence>
+                    {placedItems.map((item: MoneyDenomination, idx: number) => (
+                        <motion.div
+                            key={`${item.label}-${idx}`}
+                            className={`money-item ${item.type}`}
+                            initial={{ scale: 0, rotate: Math.random() * 20 - 10 }}
+                            animate={{ scale: 1, rotate: Math.random() * 10 - 5 }}
+                            exit={{ scale: 0, opacity: 0 }}
+                            layout
+                            onClick={() => handleRemoveMoney(idx)}
+                            style={{ cursor: success ? 'default' : 'pointer' }}
+                            title="Klicken zum Entfernen"
+                        >
+                            <img
+                                src={item.image}
+                                alt={item.label}
+                                className="money-image"
+                                style={{
+                                    width: item.type === 'bill' ? '120px' : '70px'
+                                }}
+                            />
+                            <span className="money-label">{item.label}</span>
+                        </motion.div>
+                    ))}
+                </AnimatePresence>
+            </div>
+        );
+    };
+
+    return (
+        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+            <div className="playground">
+                {/* Left Sidebar: Wallet */}
+                <aside className="wallet-section">
+                    <h2>
+                        <span>👛</span> Dein Geldbeutel
                     </h2>
+                    <p className="wallet-hint">Klicke auf das Geld oder ziehe es auf den Tisch</p>
 
-                    {isSolved && (
-                        <div className="task-status">
+                    <div className="denominations-grid">
+                        {DENOMINATIONS.map((d) => (
+                            <DraggableMoney key={d.label} denom={d} />
+                        ))}
+                    </div>
+                </aside>
+
+                {/* Main Area */}
+                <main className="main-area">
+                    {/* Task Banner */}
+                    <motion.div
+                        className="task-banner"
+                        initial={{ y: -20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                    >
+                        <h2 className="task-title">Lege diesen Betrag:</h2>
+                        <div className="task-price-tag">
+                            <span className="target-price">{targetAmount.toFixed(2).replace('.', ',')} €</span>
+                        </div>
+
+                        {/* Stats Row */}
+                        <div className="stats-row">
                             <motion.div
-                                initial={{ scale: 0.8, opacity: 0 }}
-                                animate={{ scale: 1, opacity: 1 }}
-                                className="success-actions"
+                                whileHover={{ scale: 1.05 }}
+                                className="stat-item"
                             >
-                                <span className="success-badge">✓ Korrekt!</span>
-                                <button className="next-button" onClick={generateNewTask}>
-                                    Nächste <ArrowRight size={16} />
-                                </button>
+                                <Trophy size={24} className="stat-icon trophy" />
+                                <span className="stat-label">Rekord</span>
+                                <span className="stat-value">{bestStreak}</span>
+                            </motion.div>
+
+                            <motion.div
+                                whileHover={{ scale: 1.05 }}
+                                className="stat-item"
+                            >
+                                <Flame size={24} className="stat-icon flame" />
+                                <span className="stat-label">Serie</span>
+                                <span className="stat-value">{streak}</span>
                             </motion.div>
                         </div>
-                    )}
-                    <button className="reset-button" onClick={handleReset}>
-                        <RotateCcw size={16} /> Zurücksetzen
-                    </button>
-                </div>
 
-                <div className="table-section">
-                    <AnimatePresence>
-                        {placedMoney.map((item) => (
-                            <motion.div
-                                key={item.id}
-                                initial={{ opacity: 0, scale: 0.5, y: 50 }}
-                                animate={{ opacity: 1, scale: 1, y: 0 }}
-                                exit={{ opacity: 0, scale: 0.5 }}
-                                className={`money-item ${item.denom.type}`}
-                                style={{ transform: `translate(${item.x}px, ${item.y}px)` }}
-                                onClick={() => setPlacedMoney(placedMoney.filter((m) => m.id !== item.id))}
-                            >
-                                <div className="money-label">{item.denom.label}</div>
-                                <img
-                                    src={item.denom.imageUrl}
-                                    alt={item.denom.label}
-                                    className={`money-image ${item.denom.type}`}
-                                />
-                            </motion.div>
-                        ))}
-                    </AnimatePresence>
-                </div>
-            </section>
-        </div>
+                        <div className="task-status">
+                            {/* Current Amount Hidden for Challenge */}
+
+                            {success && (
+                                <motion.div
+                                    initial={{ scale: 0 }}
+                                    animate={{ scale: 1 }}
+                                    className="success-badge"
+                                >
+                                    <CheckCircle2 size={24} />
+                                    <span>Perfekt!</span>
+                                </motion.div>
+                            )}
+
+                            {success && (
+                                <button className="next-button" onClick={generateNewTask}>
+                                    Nächste Aufgabe
+                                </button>
+                            )}
+
+                            {!success && placedItems.length > 0 && (
+                                <button className="reset-button-small" onClick={handleReset} title="Tisch leeren">
+                                    <RotateCcw size={20} />
+                                </button>
+                            )}
+                        </div>
+                    </motion.div>
+
+                    {/* Drop Zone */}
+                    <DropZone />
+                </main>
+
+                <DragOverlay>
+                    {activeId ? (
+                        <div className="money-drag-preview">
+                            {/* Simple Preview */}
+                            <img
+                                src={DENOMINATIONS.find(d => d.label === activeId)?.image}
+                                alt="preview"
+                                style={{ width: '80px', opacity: 0.8 }}
+                            />
+                        </div>
+                    ) : null}
+                </DragOverlay>
+            </div>
+        </DndContext>
     );
 };

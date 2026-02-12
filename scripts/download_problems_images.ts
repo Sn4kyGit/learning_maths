@@ -2,11 +2,12 @@
 import fs from 'fs';
 import path from 'path';
 import { https } from 'follow-redirects';
+import type { IncomingMessage } from 'http';
 import { PREDEFINED_PROBLEMS } from '../src/data/predefinedProblems';
 
 // Constants
 const OUTPUT_DIR = path.join(process.cwd(), 'public', 'images', 'problems');
-const POOL_SIZE = 60; // 20 per difficulty
+
 
 // Ensure output directory exists
 if (!fs.existsSync(OUTPUT_DIR)) {
@@ -17,7 +18,7 @@ if (!fs.existsSync(OUTPUT_DIR)) {
 const downloadImage = (url: string, filepath: string): Promise<void> => {
     return new Promise((resolve, reject) => {
         const file = fs.createWriteStream(filepath);
-        https.get(url, (response) => {
+        https.get(url, (response: IncomingMessage) => {
             if (response.statusCode !== 200) {
                 reject(new Error(`Failed to consume ${url}: status code ${response.statusCode}`));
                 return;
@@ -27,7 +28,7 @@ const downloadImage = (url: string, filepath: string): Promise<void> => {
                 file.close();
                 resolve();
             });
-        }).on('error', (err) => {
+        }).on('error', (err: Error) => {
             fs.unlink(filepath, () => { });
             reject(err);
         });

@@ -1,50 +1,66 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface GridCalculatorProps {
-    a: number;
-    b: number;
-    op: '+' | '-';
-    onCheck: (result: number) => void;
-    status: 'idle' | 'correct' | 'wrong' | 'failed';
+    num1: number;
+    num2: number;
+    operator: '+' | '-';
+    isMoney?: boolean;
+    onSuccess?: () => void;
+    onFailure?: () => void;
+    onNext?: () => void;
 }
 
-export const GridCalculator: React.FC<GridCalculatorProps> = ({ a, b, op, onCheck, status }) => {
-    // We'll use a 6x5 grid (6 columns for up to 999,999; 5 rows: num1, op+num2, line, carries, result)
-    // Row 0: num a
-    // Row 1: op + num b
-    // Row 2: carry row (Merkzahlen)
-    // Row 3: result row
-    const COLS = 6;
+export const GridCalculator: React.FC<GridCalculatorProps> = ({
+    num1,
+    num2,
+    operator,
+    isMoney = false,
+    onSuccess,
+    onFailure,
+    onNext
+}) => {
+    // We'll use a 7x5 grid (6 digit columns + 1 comma column; 5 rows)
+    // The comma is between columns 4 and 5 (10^0 and 10^-1)
+    const DIGIT_COLS = 6;
+    const COMMA_COL_INDEX = 4; // 0, 1, 2, 3, [COMMA], 4, 5
+    const TOTAL_COLS = DIGIT_COLS + 1;
 
-    const [grid, setGrid] = useState<Record<string, string>>({});
+    const [grid, setGrid] = useState<Record<string, string>>(() => {
+        const initialGrid: Record<string, string> = {};
+        const strA = num1.toString().padStart(3, '0');
+        const strB = num2.toString().padStart(3, '0');
+
+        const fillRow = (row: number, str: string) => {
+            for (let i = 0; i < str.length; i++) {
+                const char = str[str.length - 1 - i];
+                const gridCol = TOTAL_COLS - 1 - (i >= 2 ? i + 1 : i);
+                if (gridCol >= 0) {
+                    initialGrid[`${row}-${gridCol}`] = char;
+                }
+            }
+        };
+
+        fillRow(0, strA);
+        fillRow(1, strB);
+        return initialGrid;
+    });
+
+    const [status, setStatus] = useState<'idle' | 'correct' | 'wrong'>('idle');
     const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
-    // Pre-fill numbers a and b
+    // Side effects (Focus)
     useEffect(() => {
-        const newGrid: Record<string, string> = {};
-        const strA = a.toString();
-        const strB = b.toString();
-
-        // Fill row 0 (number a)
-        for (let i = 0; i < strA.length; i++) {
-            newGrid[`0-${COLS - 1 - i}`] = strA[strA.length - 1 - i];
-        }
-
-        // Fill row 1 (number b)
-        for (let i = 0; i < strB.length; i++) {
-            newGrid[`1-${COLS - 1 - i}`] = strB[strB.length - 1 - i];
-        }
-
-        setGrid(newGrid);
-
-        // Focus last result cell
-        setTimeout(() => {
-            inputRefs.current[`3-${COLS - 1}`]?.focus();
+        // Focus last result cell (TOTAL_COLS - 1)
+        const timer = setTimeout(() => {
+            inputRefs.current[`3-${TOTAL_COLS - 1}`]?.focus();
         }, 100);
-    }, [a, b]);
+        return () => clearTimeout(timer);
+    }, [TOTAL_COLS]);
 
     const handleInputChange = (row: number, col: number, value: string) => {
-        if (status !== 'idle' && status !== 'wrong') return;
+        if (status === 'correct') return;
+        if (col === COMMA_COL_INDEX) return; // Comma is static
 
         // Only allow digits
         const digit = value.slice(-1);
@@ -54,8 +70,12 @@ export const GridCalculator: React.FC<GridCalculatorProps> = ({ a, b, op, onChec
         setGrid(prev => ({ ...prev, [key]: digit }));
 
         // Auto-focus next cell (left for arithmetic)
-        if (digit !== '' && col > 0) {
-            inputRefs.current[`${row}-${col - 1}`]?.focus();
+        if (digit !== '') {
+            let nextCol = col - 1;
+            if (nextCol === COMMA_COL_INDEX) nextCol--;
+            if (nextCol >= 0) {
+                inputRefs.current[`${row}-${nextCol}`]?.focus();
+            }
         }
     };
 
@@ -65,31 +85,59 @@ export const GridCalculator: React.FC<GridCalculatorProps> = ({ a, b, op, onChec
             return;
         }
 
-        if (e.key === 'Backspace' && !grid[`${row}-${col}`] && col < COLS - 1) {
-            inputRefs.current[`${row}-${col + 1}`]?.focus();
+        if (e.key === 'Backspace' && !grid[`${row}-${col}`]) {
+            let nextCol = col + 1;
+            if (nextCol === COMMA_COL_INDEX) nextCol++;
+            if (nextCol < TOTAL_COLS) {
+                inputRefs.current[`${row}-${nextCol}`]?.focus();
+            }
             return;
         }
 
         // Arrow navigation
-        if (e.key === 'ArrowLeft' && col > 0) inputRefs.current[`${row}-${col - 1}`]?.focus();
-        if (e.key === 'ArrowRight' && col < COLS - 1) inputRefs.current[`${row}-${col + 1}`]?.focus();
+        if (e.key === 'ArrowLeft') {
+            let nextCol = col - 1;
+            if (nextCol === COMMA_COL_INDEX) nextCol--;
+            if (nextCol >= 0) inputRefs.current[`${row}-${nextCol}`]?.focus();
+        }
+        if (e.key === 'ArrowRight') {
+            let nextCol = col + 1;
+            if (nextCol === COMMA_COL_INDEX) nextCol++;
+            if (nextCol < TOTAL_COLS) inputRefs.current[`${row}-${nextCol}`]?.focus();
+        }
         if (e.key === 'ArrowUp' && row > 2) inputRefs.current[`${row - 1}-${col}`]?.focus();
         if (e.key === 'ArrowDown' && row < 3) inputRefs.current[`${row + 1}-${col}`]?.focus();
     };
 
     const submitForm = () => {
         let resultStr = '';
-        for (let i = 0; i < COLS; i++) {
-            resultStr += grid[`3-${i}`] || '';
+        for (let i = 0; i < TOTAL_COLS; i++) {
+            if (i === COMMA_COL_INDEX) continue;
+            resultStr += grid[`3-${i}`] || '0';
         }
         const numericResult = parseInt(resultStr, 10);
-        onCheck(isNaN(numericResult) ? 0 : numericResult);
+
+        let expected = 0;
+        if (operator === '+') expected = num1 + num2;
+        else expected = num1 - num2;
+
+        if (numericResult === expected) {
+            setStatus('correct');
+            onSuccess?.();
+            setTimeout(() => {
+                onNext?.();
+            }, 1500);
+        } else {
+            setStatus('wrong');
+            onFailure?.();
+            setTimeout(() => setStatus('idle'), 1000);
+        }
     };
 
     const clearGrid = () => {
         setGrid(prev => {
             const next = { ...prev };
-            for (let i = 0; i < COLS; i++) {
+            for (let i = 0; i < TOTAL_COLS; i++) {
                 delete next[`2-${i}`]; // Clear carries
                 delete next[`3-${i}`]; // Clear results
             }
@@ -97,7 +145,7 @@ export const GridCalculator: React.FC<GridCalculatorProps> = ({ a, b, op, onChec
         });
         // Refocus last cell
         setTimeout(() => {
-            inputRefs.current[`3-${COLS - 1}`]?.focus();
+            inputRefs.current[`3-${TOTAL_COLS - 1}`]?.focus();
         }, 50);
     };
 
@@ -107,57 +155,79 @@ export const GridCalculator: React.FC<GridCalculatorProps> = ({ a, b, op, onChec
         <div className="math-notebook">
             <div className="math-grid-container">
                 <div className="math-grid-wrapper">
-                    <div className="math-grid" style={{ gridTemplateColumns: `repeat(${COLS}, 1fr)` }}>
+                    <div className="math-grid money" style={{ gridTemplateColumns: `repeat(${TOTAL_COLS}, 1fr)` }}>
                         {/* Header: numbers a and b are read-only */}
                         {[0, 1].map(row => (
                             <React.Fragment key={row}>
-                                {Array.from({ length: COLS }).map((_, col) => {
+                                {Array.from({ length: TOTAL_COLS }).map((_, col) => {
                                     const isOperatorCell = row === 1 && col === 0;
+                                    const isCommaCell = col === COMMA_COL_INDEX;
                                     return (
                                         <div
                                             key={`${row}-${col}`}
-                                            className={`karo-cell static ${row === 1 ? 'row-b' : ''}`}
+                                            className={`karo-cell static ${row === 1 ? 'row-b' : ''} ${isCommaCell ? 'comma-cell' : ''}`}
                                         >
-                                            {isOperatorCell ? <span className="grid-operator">{op}</span> : (grid[`${row}-${col}`] || '')}
+                                            {isOperatorCell ? (
+                                                <span className="grid-operator">{operator}</span>
+                                            ) : isCommaCell ? (
+                                                <span className="grid-comma">,</span>
+                                            ) : (
+                                                grid[`${row}-${col}`] || ''
+                                            )}
+                                            {/* Show Currency symbol after last column */}
+                                            {isMoney && col === TOTAL_COLS - 1 && <span className="grid-currency">€</span>}
                                         </div>
                                     );
                                 })}
                             </React.Fragment>
                         ))}
 
-                        {/* Rechenstrich border handled via .row-b class in CSS */}
-
                         {/* Carry Row (Merkzahlen) */}
-                        {Array.from({ length: COLS }).map((_, col) => (
-                            <div key={`carry-${col}`} className="karo-cell carry">
-                                <input
-                                    ref={el => { inputRefs.current[`2-${col}`] = el; }}
-                                    type="text"
-                                    maxLength={1}
-                                    value={grid[`2-${col}`] || ''}
-                                    onChange={(e) => handleInputChange(2, col, e.target.value)}
-                                    onKeyDown={(e) => handleKeyDown(e, 2, col)}
-                                    className="carry-input"
-                                    disabled={status === 'correct' || status === 'failed'}
-                                />
-                            </div>
-                        ))}
+                        {Array.from({ length: TOTAL_COLS }).map((_, col) => {
+                            const isCommaCell = col === COMMA_COL_INDEX;
+                            return (
+                                <div key={`carry-${col}`} className={`karo-cell carry ${isCommaCell ? 'comma-cell' : ''}`}>
+                                    {isCommaCell ? (
+                                        <span className="grid-comma invisible">,</span>
+                                    ) : (
+                                        <input
+                                            ref={el => { inputRefs.current[`2-${col}`] = el; }}
+                                            type="text"
+                                            maxLength={1}
+                                            value={grid[`2-${col}`] || ''}
+                                            onChange={(e) => handleInputChange(2, col, e.target.value)}
+                                            onKeyDown={(e) => handleKeyDown(e, 2, col)}
+                                            className="carry-input"
+                                            disabled={status === 'correct'}
+                                        />
+                                    )}
+                                </div>
+                            );
+                        })}
 
                         {/* Result Row */}
-                        {Array.from({ length: COLS }).map((_, col) => (
-                            <div key={`result-${col}`} className={`karo-cell result ${status}`}>
-                                <input
-                                    ref={el => { inputRefs.current[`3-${col}`] = el; }}
-                                    type="text"
-                                    maxLength={1}
-                                    value={grid[`3-${col}`] || ''}
-                                    onChange={(e) => handleInputChange(3, col, e.target.value)}
-                                    onKeyDown={(e) => handleKeyDown(e, 3, col)}
-                                    className="result-input"
-                                    disabled={status === 'correct' || status === 'failed'}
-                                />
-                            </div>
-                        ))}
+                        {Array.from({ length: TOTAL_COLS }).map((_, col) => {
+                            const isCommaCell = col === COMMA_COL_INDEX;
+                            return (
+                                <div key={`result-${col}`} className={`karo-cell result ${status} ${isCommaCell ? 'comma-cell' : ''}`}>
+                                    {isCommaCell ? (
+                                        <span className="grid-comma">,</span>
+                                    ) : (
+                                        <input
+                                            ref={el => { inputRefs.current[`3-${col}`] = el; }}
+                                            type="text"
+                                            maxLength={1}
+                                            value={grid[`3-${col}`] || ''}
+                                            onChange={(e) => handleInputChange(3, col, e.target.value)}
+                                            onKeyDown={(e) => handleKeyDown(e, 3, col)}
+                                            className="result-input"
+                                            disabled={status === 'correct'}
+                                        />
+                                    )}
+                                    {isMoney && col === TOTAL_COLS - 1 && <span className="grid-currency">€</span>}
+                                </div>
+                            );
+                        })}
                     </div>
 
                     {(hasContent || status === 'wrong') && status !== 'correct' && (
@@ -173,14 +243,19 @@ export const GridCalculator: React.FC<GridCalculatorProps> = ({ a, b, op, onChec
             </div>
 
             <div className="grid-actions">
-                {status === 'idle' || status === 'wrong' ? (
-                    <button
-                        onClick={submitForm}
-                        className={`action-btn ${status === 'wrong' ? 'error' : 'primary'}`}
-                    >
-                        {status === 'wrong' ? 'Nochmal versuchen' : 'Prüfen'}
-                    </button>
-                ) : null}
+                <AnimatePresence>
+                    {(status === 'idle' || status === 'wrong') && (
+                        <motion.button
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 10 }}
+                            onClick={submitForm}
+                            className={`action-btn ${status === 'wrong' ? 'error' : 'primary'}`}
+                        >
+                            {status === 'wrong' ? 'Nochmal versuchen' : 'Prüfen'}
+                        </motion.button>
+                    )}
+                </AnimatePresence>
             </div>
         </div>
     );

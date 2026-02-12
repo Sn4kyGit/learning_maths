@@ -1,8 +1,7 @@
-
 import fs from 'fs';
 import path from 'path';
 import followRedirects from 'follow-redirects';
-const { https } = followRedirects;
+import type { IncomingMessage } from 'http';
 
 // Define data directly to avoid module resolution issues
 const PREDEFINED_PROBLEMS = {
@@ -86,7 +85,7 @@ if (!fs.existsSync(OUTPUT_DIR)) {
 const downloadImage = (url: string, filepath: string): Promise<void> => {
     return new Promise((resolve, reject) => {
         const file = fs.createWriteStream(filepath);
-        https.get(url, (response) => {
+        followRedirects.https.get(url, (response: IncomingMessage) => {
             if (response.statusCode !== 200) {
                 reject(new Error(`Failed to consume ${url}: status code ${response.statusCode}`));
                 return;
@@ -96,7 +95,7 @@ const downloadImage = (url: string, filepath: string): Promise<void> => {
                 file.close();
                 resolve();
             });
-        }).on('error', (err) => {
+        }).on('error', (err: Error) => {
             fs.unlink(filepath, () => { });
             reject(err);
         });
@@ -108,7 +107,6 @@ const main = async () => {
     let count = 0;
 
     for (const diff of ['easy', 'medium', 'hard'] as const) {
-        // @ts-ignore
         const problems = PREDEFINED_PROBLEMS[diff];
         console.log(`Processing ${diff} problems...`);
 
