@@ -1,0 +1,78 @@
+
+> mathe-superhelden@0.0.0 lint
+> eslint .
+
+
+/Volumes/DEV_EXTERN/Coding/antigravity_home/math-project/src/components/features/mobile/ArithmeticTestMobile.tsx
+  14:50  error  Error: Cannot access variable before it is declared
+
+`generateTaskData` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.
+
+/Volumes/DEV_EXTERN/Coding/antigravity_home/math-project/src/components/features/mobile/ArithmeticTestMobile.tsx:14:50
+  12 |
+  13 | export const ArithmeticTestMobile = () => {
+> 14 |     const [task, setTask] = useState<Task>(() => generateTaskData());
+     |                                                  ^^^^^^^^^^^^^^^^ `generateTaskData` accessed before it is declared
+  15 |     const [streak, setStreak] = useState(0);
+  16 |     const [bestStreak, setBestStreak] = useState(() => {
+  17 |         const saved = localStorage.getItem('arithmetic_bestStreak');
+
+/Volumes/DEV_EXTERN/Coding/antigravity_home/math-project/src/components/features/mobile/ArithmeticTestMobile.tsx:23:5
+  21 |     const [userInput, setUserInput] = useState('');
+  22 |
+> 23 |     function generateTaskData() {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 24 |         const isAddition = Math.random() > 0.5;
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 25 |         const n1 = Math.floor(Math.random() * 80000) + 1000;
+     …
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 34 |         };
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 35 |     }
+     | ^^^^^^ `generateTaskData` is declared here
+  36 |
+  37 |     const generateNewTask = useCallback(() => {
+  38 |         setTask(generateTaskData());  react-hooks/immutability
+
+/Volumes/DEV_EXTERN/Coding/antigravity_home/math-project/src/components/features/mobile/MoneyDragDropMobile.tsx
+  47:9  error  Error: Cannot access variable before it is declared
+
+`generateNewTask` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.
+
+/Volumes/DEV_EXTERN/Coding/antigravity_home/math-project/src/components/features/mobile/MoneyDragDropMobile.tsx:47:9
+  45 |
+  46 |     useEffect(() => {
+> 47 |         generateNewTask();
+     |         ^^^^^^^^^^^^^^^ `generateNewTask` accessed before it is declared
+  48 |     }, []);
+  49 |
+  50 |     const generateNewTask = () => {
+
+/Volumes/DEV_EXTERN/Coding/antigravity_home/math-project/src/components/features/mobile/MoneyDragDropMobile.tsx:50:5
+  48 |     }, []);
+  49 |
+> 50 |     const generateNewTask = () => {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 51 |         const randomVal = (Math.floor(Math.random() * 850 * 100) + 150) / 100;
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 52 |         const rounded = Math.round(randomVal * 100) / 100;
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 53 |
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 54 |         setTargetAmount(rounded);
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 55 |         setCurrentAmount(0);
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 56 |         setPlacedItems([]);
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 57 |         setSuccess(false);
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 58 |     };
+     | ^^^^^^^ `generateNewTask` is declared here
+  59 |
+  60 |     useEffect(() => {
+  61 |         if (!success && targetAmount > 0 && Math.abs(currentAmount - targetAmount) < 0.001) {  react-hooks/immutability
+
+✖ 2 problems (2 errors, 0 warnings)
+

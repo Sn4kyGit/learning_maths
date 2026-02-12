@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
     DndContext,
     useDraggable,
@@ -42,21 +42,29 @@ const DENOMINATIONS: MoneyDenomination[] = [
     { value: 0.2, label: '20ct', type: 'coin', image: '/assets/money/20ct_coin.png' },
     { value: 0.1, label: '10ct', type: 'coin', image: '/assets/money/10ct_coin.png' },
     { value: 0.05, label: '5ct', type: 'coin', image: '/assets/money/5ct_coin.png' },
-    // { value: 0.02, label: '2ct', type: 'coin', image: '/assets/money/2ct_coin.png' }, // Missing
-    // { value: 0.01, label: '1ct', type: 'coin', image: '/assets/money/1ct_coin.png' }, // Missing
+    { value: 0.02, label: '2ct', type: 'coin', image: '/assets/money/2ct_coin.png' },
+    { value: 0.01, label: '1ct', type: 'coin', image: '/assets/money/1ct_coin.png' },
 ];
+
+const generateRandomAmount = () => {
+    // Generate a random amount between 1.50€ and 850.00€
+    const randomVal = (Math.floor(Math.random() * 850 * 100) + 150) / 100;
+    return Math.round(randomVal * 100) / 100;
+};
 
 export const MoneyDragDrop = () => {
     // Game State
-    const [targetAmount, setTargetAmount] = useState<number>(0);
-    const [currentAmount, setCurrentAmount] = useState<number>(0);
+    const [targetAmount, setTargetAmount] = useState<number>(() => generateRandomAmount());
     const [placedItems, setPlacedItems] = useState<MoneyDenomination[]>([]);
     const [activeId, setActiveId] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
 
     // Stats
     const [streak, setStreak] = useState(0);
-    const [bestStreak, setBestStreak] = useState(0);
+    const [bestStreak, setBestStreak] = useState(() => {
+        const saved = localStorage.getItem('money_bestStreak');
+        return saved ? parseInt(saved) : 0;
+    });
 
     // Sensors with activation constraints to allow clicks
     const sensors = useSensors(
@@ -73,23 +81,31 @@ export const MoneyDragDrop = () => {
         }),
     );
 
-    // Init Logic
-    useEffect(() => {
-        const savedBest = localStorage.getItem('money_bestStreak');
-        if (savedBest) setBestStreak(parseInt(savedBest));
-        generateNewTask();
-    }, []);
-
     const generateNewTask = () => {
-        // Generate a random amount between 1.50€ and 850.00€
-        const randomVal = (Math.floor(Math.random() * 850 * 100) + 150) / 100;
-        // Round to 2 decimals to be safe
-        const rounded = Math.round(randomVal * 100) / 100;
-
-        setTargetAmount(rounded);
-        setCurrentAmount(0);
+        setTargetAmount(generateRandomAmount());
         setPlacedItems([]);
         setSuccess(false);
+    };
+
+    const checkWinCondition = (amount: number) => {
+        if (!success && targetAmount > 0 && Math.abs(amount - targetAmount) < 0.001) {
+            setSuccess(true);
+
+            // Updates Stats
+            const newStreak = streak + 1;
+            setStreak(newStreak);
+            if (newStreak > bestStreak) {
+                setBestStreak(newStreak);
+                localStorage.setItem('money_bestStreak', newStreak.toString());
+            }
+
+            confetti({
+                particleCount: 150,
+                spread: 70,
+                origin: { y: 0.6 },
+                colors: ['#6366f1', '#f59e0b', '#06b6d4', '#10b981']
+            });
+        }
     };
 
     // Drag Logic
@@ -111,36 +127,14 @@ export const MoneyDragDrop = () => {
 
                 // Recalculate Total
                 const newTotal = newItems.reduce((acc, item) => acc + item.value, 0);
-                setCurrentAmount(Math.round(newTotal * 100) / 100);
+                const roundedTotal = Math.round(newTotal * 100) / 100;
+                checkWinCondition(roundedTotal);
             }
         }
     };
 
-    // Check Win Condition
-    useEffect(() => {
-        if (!success && targetAmount > 0 && Math.abs(currentAmount - targetAmount) < 0.001) {
-            setSuccess(true);
-
-            // Updates Stats
-            const newStreak = streak + 1;
-            setStreak(newStreak);
-            if (newStreak > bestStreak) {
-                setBestStreak(newStreak);
-                localStorage.setItem('money_bestStreak', newStreak.toString());
-            }
-
-            confetti({
-                particleCount: 150,
-                spread: 70,
-                origin: { y: 0.6 },
-                colors: ['#6366f1', '#f59e0b', '#06b6d4', '#10b981']
-            });
-        }
-    }, [currentAmount, targetAmount, success, streak, bestStreak]);
-
     const handleReset = () => {
         setPlacedItems([]);
-        setCurrentAmount(0);
         // Note: Resetting table doesn't break streak if they haven't won yet
         // Only explicit failure would break streak, but here they just retry
     };
@@ -154,7 +148,9 @@ export const MoneyDragDrop = () => {
 
         // Recalculate Total
         const newTotal = newItems.reduce((acc: number, item: MoneyDenomination) => acc + item.value, 0);
-        setCurrentAmount(Math.round(newTotal * 100) / 100);
+        const roundedTotal = Math.round(newTotal * 100) / 100;
+        setCurrentAmount(roundedTotal);
+        checkWinCondition(roundedTotal);
     };
 
     const handleRemoveMoney = (indexToRemove: number) => {
@@ -165,7 +161,8 @@ export const MoneyDragDrop = () => {
 
         // Recalculate Total
         const newTotal = newItems.reduce((acc: number, item: MoneyDenomination) => acc + item.value, 0);
-        setCurrentAmount(Math.round(newTotal * 100) / 100);
+        const roundedTotal = Math.round(newTotal * 100) / 100;
+        checkWinCondition(roundedTotal);
     };
 
     // --- Sub-Components ---

@@ -6,13 +6,19 @@ import { ArithmeticTest } from './components/features/ArithmeticTest';
 import { AIWordProblems } from './components/features/AIWordProblems';
 import './index.css';
 
+import { useDevice } from './hooks/useDevice';
+import { MoneyDragDropMobile } from './components/features/mobile/MoneyDragDropMobile';
+import { ArithmeticTestMobile } from './components/features/mobile/ArithmeticTestMobile';
+import { AIWordProblemsMobile } from './components/features/mobile/AIWordProblemsMobile';
+
 type Tab = 'supermarket' | 'arithmetic' | 'ai';
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('supermarket');
+  const { isMobile } = useDevice();
 
   return (
-    <div className="app-container">
+    <div className={`app-container ${isMobile ? 'mobile' : ''}`}>
       <header className="supermarket-header">
         <motion.h1
           initial={{ y: -50, opacity: 0 }}
@@ -51,15 +57,21 @@ function App() {
       </nav>
 
       <motion.main
-        key={activeTab}
+        key={`${activeTab}-${isMobile}`}
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 1.05 }}
         transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
       >
-        {activeTab === 'supermarket' && <MoneyDragDrop />}
-        {activeTab === 'arithmetic' && <ArithmeticTest />}
-        {activeTab === 'ai' && <AIWordProblems />}
+        {activeTab === 'supermarket' && (
+          isMobile ? <MoneyDragDropMobile /> : <MoneyDragDrop />
+        )}
+        {activeTab === 'arithmetic' && (
+          isMobile ? <ArithmeticTestMobile /> : <ArithmeticTest />
+        )}
+        {activeTab === 'ai' && (
+          isMobile ? <AIWordProblemsMobile /> : <AIWordProblems />
+        )}
       </motion.main>
     </div>
   );
