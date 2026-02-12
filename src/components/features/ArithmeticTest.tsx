@@ -13,7 +13,6 @@ interface Task {
 
 export const ArithmeticTest = () => {
     const [task, setTask] = useState<Task | null>(null);
-    const [userInput, setUserInput] = useState('');
     const [status, setStatus] = useState<'idle' | 'correct' | 'wrong' | 'failed'>('idle');
     const [streak, setStreak] = useState(0);
     const [bestStreak, setBestStreak] = useState(0);
@@ -39,26 +38,10 @@ export const ArithmeticTest = () => {
         }
 
         setTask({ a, b, op: isPlus ? '+' : '-', result });
-        setUserInput('');
         setStatus('idle');
         setAttempts(0);
     };
 
-    const handleNumberClick = (num: string) => {
-        if (status !== 'idle' && status !== 'wrong') return; // Allow retry on 'wrong' (shake)
-        if (userInput.length >= 7) return;
-        setUserInput(prev => prev + num);
-    };
-
-    const handleBackspace = () => {
-        if (status !== 'idle') return;
-        setUserInput(prev => prev.slice(0, -1));
-    };
-
-    const handleClear = () => {
-        if (status !== 'idle') return;
-        setUserInput('');
-    };
 
     useEffect(() => {
         generateTask();

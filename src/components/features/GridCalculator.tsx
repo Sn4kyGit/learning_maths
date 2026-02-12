@@ -15,7 +15,6 @@ export const GridCalculator: React.FC<GridCalculatorProps> = ({ a, b, op, onChec
     // Row 2: carry row (Merkzahlen)
     // Row 3: result row
     const COLS = 6;
-    const ROWS = 4; // We'll handle the line as a CSS border on row 1
 
     const [grid, setGrid] = useState<Record<string, string>>({});
     const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -114,7 +113,7 @@ export const GridCalculator: React.FC<GridCalculatorProps> = ({ a, b, op, onChec
                     {Array.from({ length: COLS }).map((_, col) => (
                         <div key={`carry-${col}`} className="karo-cell carry">
                             <input
-                                ref={el => inputRefs.current[`2-${col}`] = el}
+                                ref={el => { inputRefs.current[`2-${col}`] = el; }}
                                 type="text"
                                 maxLength={1}
                                 value={grid[`2-${col}`] || ''}
@@ -130,7 +129,7 @@ export const GridCalculator: React.FC<GridCalculatorProps> = ({ a, b, op, onChec
                     {Array.from({ length: COLS }).map((_, col) => (
                         <div key={`result-${col}`} className={`karo-cell result ${status}`}>
                             <input
-                                ref={el => inputRefs.current[`3-${col}`] = el}
+                                ref={el => { inputRefs.current[`3-${col}`] = el; }}
                                 type="text"
                                 maxLength={1}
                                 value={grid[`3-${col}`] || ''}
