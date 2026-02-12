@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { RefreshCcw } from 'lucide-react';
 import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
+import { GridCalculator } from './GridCalculator';
 
 interface Task {
     a: number;
@@ -91,12 +92,9 @@ export const ArithmeticTest = () => {
         oscillator.stop(audioCtx.currentTime + 0.2);
     };
 
-    const checkResult = (e: React.FormEvent) => {
-        e.preventDefault();
+    const checkResult = (val: number) => {
         if (!task) return;
 
-        // Normalize input (comma to dot for parseFloat)
-        const val = parseFloat(userInput.replace(',', '.'));
         if (Math.abs(val - task.result) < 0.01) {
             setStatus('correct');
             triggerSuccess();
@@ -109,9 +107,7 @@ export const ArithmeticTest = () => {
                 setStreak(0);
             } else {
                 setStatus('wrong');
-                // Shake effect logic handled by class usually, or just state
-                setTimeout(() => setStatus('idle'), 800); // Auto-reset to idle after shake/error message
-                setUserInput('');
+                setTimeout(() => setStatus('idle'), 1500);
             }
         }
     };
@@ -134,89 +130,38 @@ export const ArithmeticTest = () => {
 
                 {task && (
                     <div className="arithmetic-form">
-                        <div className="arithmetic-display">
-                            <div className="display-card primary-card">
-                                <span className="card-label">Zahl 1</span>
-                                <span className="card-value">{task.a}€</span>
-                            </div>
-                            <div className="operator-display" style={{
-                                fontSize: '2.5rem',
-                                fontWeight: '800',
-                                color: task.op === '+' ? '#10b981' : '#ef4444',
-                                margin: '0 0.5rem'
-                            }}>{task.op}</div>
-                            <div className="display-card primary-card">
-                                <span className="card-label">Zahl 2</span>
-                                <span className="card-value">{task.b}€</span>
-                            </div>
-                            <div className="operator-display">=</div>
-                            <div className={`display-card result-card ${status}`}>
-                                <span className="card-label">Dein Ergebnis</span>
-                                <span className="card-value">{userInput || '?'}€</span>
-                            </div>
-                        </div>
+                        <GridCalculator
+                            a={task.a}
+                            b={task.b}
+                            op={task.op}
+                            onCheck={(val) => checkResult(val)}
+                            status={status}
+                        />
 
-                        <div className="numpad-section">
-                            <div className="numpad-grid">
-                                {['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', ','].map(num => (
-                                    <button
-                                        key={num}
-                                        type="button"
-                                        onClick={() => handleNumberClick(num)}
-                                        className="num-btn"
-                                        disabled={status !== 'idle'}
-                                    >
-                                        {num}
-                                    </button>
-                                ))}
+                        {status === 'correct' && (
+                            <div className="numpad-actions" style={{ marginTop: '1.5rem' }}>
+                                <motion.button
+                                    initial={{ scale: 0.9 }}
+                                    animate={{ scale: 1 }}
+                                    type="button"
+                                    onClick={generateTask}
+                                    className="action-btn success"
+                                >
+                                    Korrekt! Nächste
+                                </motion.button>
+                            </div>
+                        )}
+                        {status === 'failed' && (
+                            <div className="numpad-actions" style={{ marginTop: '1.5rem' }}>
                                 <button
                                     type="button"
-                                    onClick={handleBackspace}
-                                    className="num-btn action delete"
-                                    disabled={status !== 'idle'}
+                                    onClick={generateTask}
+                                    className="action-btn error"
                                 >
-                                    ⌫
+                                    Leider falsch! (Lösung: {task.result}€)
                                 </button>
                             </div>
-                            <div className="numpad-actions">
-                                <button
-                                    type="button"
-                                    onClick={handleClear}
-                                    className="action-btn secondary"
-                                    disabled={status !== 'idle' || !userInput}
-                                >
-                                    Löschen
-                                </button>
-                                {status === 'idle' || status === 'wrong' ? (
-                                    <button
-                                        type="button"
-                                        onClick={checkResult}
-                                        className={`action-btn ${status === 'wrong' ? 'error' : 'primary'}`}
-                                        disabled={!userInput}
-                                    >
-                                        {status === 'wrong' ? `Falsch (${3 - attempts} übrig)` : 'Prüfen'}
-                                    </button>
-                                ) : status === 'correct' ? (
-                                    <motion.button
-                                        initial={{ scale: 0.9 }}
-                                        animate={{ scale: 1 }}
-                                        type="button"
-                                        onClick={generateTask}
-                                        className="action-btn success"
-                                    >
-                                        Korrekt! Nächste
-                                    </motion.button>
-                                ) : (
-                                    <button
-                                        type="button"
-                                        onClick={generateTask}
-                                        className="action-btn error"
-                                    >
-                                        Leider falsch! (Lösung: {task.result}€)
-                                    </button>
-                                )}
-                            </div>
-                        </div>
+                        )}
                     </div>
                 )}
                 <button onClick={generateTask} className="refresh-task">

@@ -403,122 +403,122 @@ body {
   margin: 0 auto;
 }
 
-.arithmetic-display {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1.5rem;
-  margin-bottom: 3rem;
-  flex-wrap: wrap;
-}
-
-.display-card {
-  background: white;
-  padding: 1.5rem 2rem;
-  border-radius: 20px;
-  box-shadow: var(--shadow-md);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-width: 160px;
-  border: 2px solid transparent;
-}
-
-.display-card.primary-card {
-  background: #f8fafc;
-}
-
-.display-card.result-card {
-  border: 4px dashed #cbd5e1;
-  min-width: 200px;
-}
-
-.display-card.result-card.correct {
-  background: #ecfdf5;
-  border: 4px solid var(--accent);
-  color: #065f46;
-}
-
-.display-card.result-card.wrong {
-  background: #fef2f2;
-  border: 4px solid var(--error);
-  color: #991b1b;
-}
-
-.card-label {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  font-weight: 800;
-  color: #64748b;
-  margin-bottom: 0.5rem;
-  letter-spacing: 1px;
-}
-
-.card-value {
-  font-family: var(--font-heading);
-  font-size: 2.5rem;
-  font-weight: 800;
-}
-
-.operator-display {
-  font-family: var(--font-heading);
-  font-size: 3rem;
-  font-weight: 800;
-  color: #cbd5e1;
-}
-
-/* Numpad Section */
-.numpad-section {
+.math-notebook {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 2rem;
+  width: 100%;
 }
 
-.numpad-grid {
+.math-grid-container {
+  background-color: white;
+  padding: 2.5rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  background-image:
+    linear-gradient(to right, #e2e8f0 1px, transparent 1px),
+    linear-gradient(to bottom, #e2e8f0 1px, transparent 1px);
+  background-size: 45px 45px;
+  border: 2px solid #cbd5e1;
+}
+
+.math-grid {
   display: grid;
-  grid-template-columns: repeat(3, 80px);
-  gap: 1rem;
+  gap: 0;
+  border: 1px solid #94a3b8;
 }
 
-.num-btn {
-  width: 80px;
-  height: 80px;
-  border-radius: 20px;
-  border: none;
-  background: white;
-  font-family: var(--font-heading);
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: var(--primary);
-  cursor: pointer;
-  box-shadow: 0 4px 0 #e2e8f0;
-  transition: all 0.1s;
+.karo-cell {
+  width: 45px;
+  height: 45px;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-family: var(--font-heading);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--primary);
+  border: 0.5px solid #e2e8f0;
+  position: relative;
 }
 
-.num-btn:active:not(:disabled) {
-  transform: translateY(4px);
-  box-shadow: 0 0 0 #e2e8f0;
+.karo-cell.static {
+  background-color: rgba(248, 250, 252, 0.5);
 }
 
-.num-btn:hover:not(:disabled) {
-  background: #f1f5f9;
+.karo-cell.row-b {
+  border-bottom: 3px solid var(--primary);
 }
 
-.num-btn.action.delete {
-  background: #fef2f2;
-  color: var(--error);
-  box-shadow: 0 4px 0 #fee2e2;
+.grid-operator {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--accent);
 }
 
-.numpad-actions {
+.carry-input,
+.result-input {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: transparent;
+  text-align: center;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+  outline: none;
+}
+
+.carry-input {
+  font-size: 1rem;
+  color: #6366f1;
+  font-weight: 800;
+}
+
+.result-input:focus {
+  background-color: rgba(99, 102, 241, 0.05);
+}
+
+.karo-cell.result.correct {
+  background-color: #ecfdf5;
+  color: #065f46;
+}
+
+.karo-cell.result.wrong {
+  background-color: #fef2f2;
+  color: #991b1b;
+  animation: shake 0.5s cubic-bezier(.36, .07, .19, .97) both;
+}
+
+@keyframes shake {
+
+  10%,
+  90% {
+    transform: translate3d(-1px, 0, 0);
+  }
+
+  20%,
+  80% {
+    transform: translate3d(2px, 0, 0);
+  }
+
+  30%,
+  50%,
+  70% {
+    transform: translate3d(-4px, 0, 0);
+  }
+
+  40%,
+  60% {
+    transform: translate3d(4px, 0, 0);
+  }
+}
+
+.grid-actions {
   display: flex;
   gap: 1rem;
-  width: 100%;
-  max-width: 320px;
 }
 
 .action-btn {
@@ -863,27 +863,32 @@ body {
 .ai-actions-bottom {
   margin-top: 1.5rem;
   display: flex;
-  justify-content: flex-end; /* Align to the right, consistent with submission */
+  justify-content: flex-end;
+  /* Align to the right, consistent with submission */
 }
 
 /* Common style for next problem button */
 .next-ai-btn {
-  background: var(--primary); /* Using primary color for consistency */
+  background: var(--primary);
+  /* Using primary color for consistency */
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
-  border-radius: var(--radius-md); /* Slightly less rounded than pill buttons */
+  border-radius: var(--radius-md);
+  /* Slightly less rounded than pill buttons */
   font-weight: 700;
   cursor: pointer;
   box-shadow: var(--shadow-md);
   transition: all 0.2s;
-  display: inline-flex; /* To align icon/text if any are added later */
+  display: inline-flex;
+  /* To align icon/text if any are added later */
   align-items: center;
   gap: 0.5rem;
 }
 
 .next-ai-btn:hover:not(:disabled) {
-  background: var(--primary-light); /* Slightly lighter on hover */
+  background: var(--primary-light);
+  /* Slightly lighter on hover */
   transform: translateY(-2px);
   box-shadow: var(--shadow-lg);
 }
