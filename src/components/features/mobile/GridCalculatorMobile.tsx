@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useAnimation } from 'framer-motion';
 import { Delete } from 'lucide-react';
 
 interface GridCalculatorMobileProps {
@@ -25,6 +25,8 @@ export const GridCalculatorMobile: React.FC<GridCalculatorMobileProps> = ({
     const DIGIT_COLS = 6;
     const COMMA_COL_INDEX = 4;
     const TOTAL_COLS = DIGIT_COLS + 1;
+
+    const controls = useAnimation(); // For the shake effect
 
     const [grid, setGrid] = useState<Record<string, string>>(() => {
         const initialGrid: Record<string, string> = {};
@@ -56,6 +58,7 @@ export const GridCalculatorMobile: React.FC<GridCalculatorMobileProps> = ({
 
     const [activeCell, setActiveCell] = useState<string>(`3-${TOTAL_COLS - 1}`);
     const [status, setStatus] = useState<'idle' | 'correct' | 'wrong'>('idle');
+    const [lastInputCell, setLastInputCell] = useState<string | null>(null);
 
     const handleKeypadPress = (val: string) => {
         if (status === 'correct') return;
@@ -78,6 +81,10 @@ export const GridCalculatorMobile: React.FC<GridCalculatorMobileProps> = ({
 
         // Add digit to grid
         setGrid(prev => ({ ...prev, [activeCell]: val }));
+        setLastInputCell(activeCell);
+
+        // Reset pop animation state after a short delay
+        setTimeout(() => setLastInputCell(null), 300);
 
         // Auto-advance logic (left for arithmetic)
         if (col > 0) {
@@ -89,7 +96,24 @@ export const GridCalculatorMobile: React.FC<GridCalculatorMobileProps> = ({
         }
     };
 
-    const submitAnswer = () => {
+    const handleCarryToggle = (cellId: string) => {
+        if (status === 'correct') return;
+        setGrid(prev => {
+            const next = { ...prev };
+            if (next[cellId] === '1') {
+                delete next[cellId];
+            } else {
+                next[cellId] = '1';
+                // Trigger pop animation for carry too
+                setLastInputCell(cellId);
+                setTimeout(() => setLastInputCell(null), 300);
+            }
+            return next;
+        });
+        if (window.navigator.vibrate) window.navigator.vibrate(5);
+    };
+
+    const submitAnswer = async () => {
         let resultStr = '';
         for (let i = 0; i < TOTAL_COLS; i++) {
             if (i === COMMA_COL_INDEX) continue;
@@ -109,6 +133,13 @@ export const GridCalculatorMobile: React.FC<GridCalculatorMobileProps> = ({
         } else {
             setStatus('wrong');
             if (window.navigator.vibrate) window.navigator.vibrate(200);
+
+            // Shake UI
+            await controls.start({
+                x: [-5, 5, -5, 5, 0],
+                transition: { duration: 0.4 }
+            });
+
             onFailure?.();
             setTimeout(() => setStatus('idle'), 1000);
         }
@@ -118,7 +149,7 @@ export const GridCalculatorMobile: React.FC<GridCalculatorMobileProps> = ({
 
     return (
         <div className="m-karoheft-wrapper">
-            <div className="m-grid-container">
+            <motion.div className="m-grid-container" animate={controls}>
                 <div className="m-math-grid" style={{ gridTemplateColumns: `repeat(${TOTAL_COLS}, 1fr)` }}>
                     {/* Header: numbers a and b */}
                     {[0, 1].map(row => (
@@ -152,8 +183,8 @@ export const GridCalculatorMobile: React.FC<GridCalculatorMobileProps> = ({
                         return (
                             <div
                                 key={cellId}
-                                onClick={() => !isCommaCell && setActiveCell(cellId)}
-                                className={`m-karo-cell carry ${isCommaCell ? 'm-comma-cell' : ''} ${activeCell === cellId ? 'active' : ''}`}
+                                onClick={() => !isCommaCell && handleCarryToggle(cellId)}
+                                className={`m-karo-cell carry ${isCommaCell ? 'm-comma-cell' : ''} ${activeCell === cellId ? 'active' : ''} ${lastInputCell === cellId ? 'animate-pop' : ''}`}
                             >
                                 {!isCommaCell && (grid[cellId] || '')}
                             </div>
@@ -168,7 +199,7 @@ export const GridCalculatorMobile: React.FC<GridCalculatorMobileProps> = ({
                             <div
                                 key={cellId}
                                 onClick={() => !isCommaCell && setActiveCell(cellId)}
-                                className={`m-karo-cell result ${isCommaCell ? 'm-comma-cell' : ''} ${activeCell === cellId ? 'active' : ''} ${status}`}
+                                className={`m-karo-cell result ${isCommaCell ? 'm-comma-cell' : ''} ${activeCell === cellId ? 'active' : ''} ${status} ${lastInputCell === cellId ? 'animate-pop' : ''}`}
                             >
                                 {isCommaCell ? (
                                     <span className="m-comma">,</span>
@@ -180,7 +211,7 @@ export const GridCalculatorMobile: React.FC<GridCalculatorMobileProps> = ({
                         );
                     })}
                 </div>
-            </div>
+            </motion.div>
 
             {/* Floating Keypad */}
             <div className="m-floating-keypad-container">
@@ -190,32 +221,35 @@ export const GridCalculatorMobile: React.FC<GridCalculatorMobileProps> = ({
                     animate={{ y: 0, opacity: 1 }}
                 >
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map(n => (
-                        <button
+                        <motion.button
                             key={n}
                             className="m-keypad-key"
+                            whileTap={{ scale: 0.9, backgroundColor: "rgba(59, 130, 246, 0.1)" }}
                             onClick={() => handleKeypadPress(n.toString())}
                         >
                             {n}
-                        </button>
+                        </motion.button>
                     ))}
-                    <button
+                    <motion.button
                         className="m-keypad-key delete"
+                        whileTap={{ scale: 0.9, backgroundColor: "rgba(239, 68, 68, 0.2)" }}
                         onClick={() => handleKeypadPress('delete')}
                     >
                         <Delete size={20} />
-                    </button>
+                    </motion.button>
                 </motion.div>
             </div>
 
             {/* Submit Button */}
             <div className="m-status-area">
-                <button
+                <motion.button
                     className={`m-next-btn ${hasContent ? 'active' : ''}`}
+                    whileTap={{ scale: 0.95 }}
                     onClick={submitAnswer}
                     disabled={status === 'correct'}
                 >
                     {status === 'correct' ? 'Super!' : 'Prüfen'}
-                </button>
+                </motion.button>
             </div>
         </div>
     );
