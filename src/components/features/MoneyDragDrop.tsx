@@ -149,7 +149,6 @@ export const MoneyDragDrop = () => {
         // Recalculate Total
         const newTotal = newItems.reduce((acc: number, item: MoneyDenomination) => acc + item.value, 0);
         const roundedTotal = Math.round(newTotal * 100) / 100;
-        setCurrentAmount(roundedTotal);
         checkWinCondition(roundedTotal);
     };
 
