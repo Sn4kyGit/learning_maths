@@ -123,6 +123,7 @@ export const MoneyDragDrop = () => {
         <div className="playground">
             <aside className="wallet-section">
                 <h2><WalletIcon size={20} /> Geldbeutel</h2>
+                <p className="wallet-hint">Klick auf das Geld, um es auf den Tisch zu legen</p>
                 <div className="denominations-grid">
                     {DENOMINATIONS.map(denom => (
                         <button
