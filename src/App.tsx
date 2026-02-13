@@ -8,6 +8,7 @@ import { WelcomeScreen } from './components/features/WelcomeScreen';
 import { Leaderboard } from './components/features/Leaderboard';
 import { GamificationProvider } from './context/GamificationContext';
 import { useGamification } from './hooks/useGamification';
+import { Analytics } from '@vercel/analytics/react';
 import './index.css';
 
 import { useDevice } from './hooks/useDevice';
@@ -149,6 +150,7 @@ function AppContent() {
         )}
       </motion.main>
 
+      {/* Modals */}
       <AnimatePresence>
         {showLeaderboard && (
           <Leaderboard
@@ -157,6 +159,7 @@ function AppContent() {
           />
         )}
       </AnimatePresence>
+      <Analytics />
     </div>
   );
 }
