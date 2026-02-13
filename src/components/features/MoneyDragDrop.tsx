@@ -28,28 +28,27 @@ interface MoneyDenomination {
 
 // --- Data ---
 const DENOMINATIONS: MoneyDenomination[] = [
-    // Bills
-    { value: 200, label: '200€', type: 'bill', image: '/assets/money/200_bill.png' },
-    { value: 100, label: '100€', type: 'bill', image: '/assets/money/100_bill.png' },
-    { value: 50, label: '50€', type: 'bill', image: '/assets/money/50_bill.png' },
-    { value: 20, label: '20€', type: 'bill', image: '/assets/money/20_bill.png' },
-    { value: 10, label: '10€', type: 'bill', image: '/assets/money/10_bill.png' },
-    { value: 5, label: '5€', type: 'bill', image: '/assets/money/5_bill.png' },
-    // Coins
-    { value: 2, label: '2€', type: 'coin', image: '/assets/money/2_coin.png' },
-    { value: 1, label: '1€', type: 'coin', image: '/assets/money/1_coin.png' },
-    { value: 0.5, label: '50ct', type: 'coin', image: '/assets/money/50ct_coin.png' },
-    { value: 0.2, label: '20ct', type: 'coin', image: '/assets/money/20ct_coin.png' },
-    { value: 0.1, label: '10ct', type: 'coin', image: '/assets/money/10ct_coin.png' },
-    { value: 0.05, label: '5ct', type: 'coin', image: '/assets/money/5ct_coin.png' },
-    { value: 0.02, label: '2ct', type: 'coin', image: '/assets/money/2ct_coin.png' },
-    { value: 0.01, label: '1ct', type: 'coin', image: '/assets/money/1ct_coin.png' },
+    // Bills (values in cents)
+    { value: 20000, label: '200€', type: 'bill', image: '/assets/money/200_bill.png' },
+    { value: 10000, label: '100€', type: 'bill', image: '/assets/money/100_bill.png' },
+    { value: 5000, label: '50€', type: 'bill', image: '/assets/money/50_bill.png' },
+    { value: 2000, label: '20€', type: 'bill', image: '/assets/money/20_bill.png' },
+    { value: 1000, label: '10€', type: 'bill', image: '/assets/money/10_bill.png' },
+    { value: 500, label: '5€', type: 'bill', image: '/assets/money/5_bill.png' },
+    // Coins (values in cents)
+    { value: 200, label: '2€', type: 'coin', image: '/assets/money/2_coin.png' },
+    { value: 100, label: '1€', type: 'coin', image: '/assets/money/1_coin.png' },
+    { value: 50, label: '50ct', type: 'coin', image: '/assets/money/50ct_coin.png' },
+    { value: 20, label: '20ct', type: 'coin', image: '/assets/money/20ct_coin.png' },
+    { value: 10, label: '10ct', type: 'coin', image: '/assets/money/10ct_coin.png' },
+    { value: 5, label: '5ct', type: 'coin', image: '/assets/money/5ct_coin.png' },
+    { value: 2, label: '2ct', type: 'coin', image: '/assets/money/2ct_coin.png' },
+    { value: 1, label: '1ct', type: 'coin', image: '/assets/money/1ct_coin.png' },
 ];
 
 const generateRandomAmount = () => {
-    // Generate a random amount between 1.50€ and 850.00€
-    const randomVal = (Math.floor(Math.random() * 850 * 100) + 150) / 100;
-    return Math.round(randomVal * 100) / 100;
+    // Generate a random amount between 150 cents (1.50€) and 85000 cents (850.00€)
+    return Math.floor(Math.random() * 84851) + 150;
 };
 
 export const MoneyDragDrop = () => {
@@ -83,8 +82,8 @@ export const MoneyDragDrop = () => {
         setSuccess(false);
     };
 
-    const checkWinCondition = (amount: number) => {
-        if (!success && targetAmount > 0 && Math.abs(amount - targetAmount) < 0.001) {
+    const checkWinCondition = (amountCents: number) => {
+        if (!success && targetAmount > 0 && amountCents === targetAmount) {
             setSuccess(true);
             addSuccess();
 
@@ -112,12 +111,9 @@ export const MoneyDragDrop = () => {
                 const newItems = [...placedItems, denom];
                 setPlacedItems(newItems);
 
-                const newTotal = newItems.reduce((acc, item) => acc + item.value, 0);
-                const roundedTotal = Math.round(newTotal * 100) / 100;
+                const newTotalCents = newItems.reduce((acc, item) => acc + item.value, 0);
 
-                // For MoneyDragDrop, we only check for win, no "wrong" submit currently.
-                // If the user wants to add failure, we would need a "Submit" button.
-                checkWinCondition(roundedTotal);
+                checkWinCondition(newTotalCents);
             }
         }
     };
@@ -130,18 +126,16 @@ export const MoneyDragDrop = () => {
         if (success) return;
         const newItems = [...placedItems, denom];
         setPlacedItems(newItems);
-        const newTotal = newItems.reduce((acc: number, item: MoneyDenomination) => acc + item.value, 0);
-        const roundedTotal = Math.round(newTotal * 100) / 100;
-        checkWinCondition(roundedTotal);
+        const newTotalCents = newItems.reduce((acc: number, item: MoneyDenomination) => acc + item.value, 0);
+        checkWinCondition(newTotalCents);
     };
 
     const handleRemoveMoney = (indexToRemove: number) => {
         if (success) return;
         const newItems = placedItems.filter((_: MoneyDenomination, idx: number) => idx !== indexToRemove);
         setPlacedItems(newItems);
-        const newTotal = newItems.reduce((acc: number, item: MoneyDenomination) => acc + item.value, 0);
-        const roundedTotal = Math.round(newTotal * 100) / 100;
-        checkWinCondition(roundedTotal);
+        const newTotalCents = newItems.reduce((acc: number, item: MoneyDenomination) => acc + item.value, 0);
+        checkWinCondition(newTotalCents);
     };
 
     // Sub-Components
@@ -253,7 +247,7 @@ export const MoneyDragDrop = () => {
                     >
                         <h2 className="task-title">Lege diesen Betrag:</h2>
                         <div className="task-price-tag">
-                            <span className="target-price">{targetAmount.toFixed(2).replace('.', ',')} €</span>
+                            <span className="target-price">{(targetAmount / 100).toFixed(2).replace('.', ',')} €</span>
                         </div>
 
                         <div className="task-status">
