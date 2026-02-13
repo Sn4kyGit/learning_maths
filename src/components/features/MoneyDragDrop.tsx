@@ -11,9 +11,10 @@ import {
     DragStartEvent,
     DragEndEvent
 } from '@dnd-kit/core';
-import { MoveLeft, RotateCcw, CheckCircle2, Trophy, Flame } from 'lucide-react';
+import { MoveLeft, RotateCcw, CheckCircle2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useGamification } from '../../hooks/useGamification';
 
 // --- Types ---
 type MoneyType = 'bill' | 'coin';
@@ -28,7 +29,6 @@ interface MoneyDenomination {
 // --- Data ---
 const DENOMINATIONS: MoneyDenomination[] = [
     // Bills
-    // { value: 500, label: '500€', type: 'bill', image: '/assets/money/500_bill.png' }, // Missing
     { value: 200, label: '200€', type: 'bill', image: '/assets/money/200_bill.png' },
     { value: 100, label: '100€', type: 'bill', image: '/assets/money/100_bill.png' },
     { value: 50, label: '50€', type: 'bill', image: '/assets/money/50_bill.png' },
@@ -53,30 +53,26 @@ const generateRandomAmount = () => {
 };
 
 export const MoneyDragDrop = () => {
+    // Global State
+    const { addSuccess } = useGamification();
+
     // Game State
     const [targetAmount, setTargetAmount] = useState<number>(() => generateRandomAmount());
     const [placedItems, setPlacedItems] = useState<MoneyDenomination[]>([]);
     const [activeId, setActiveId] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
 
-    // Stats
-    const [streak, setStreak] = useState(0);
-    const [bestStreak, setBestStreak] = useState(() => {
-        const saved = localStorage.getItem('money_bestStreak');
-        return saved ? parseInt(saved) : 0;
-    });
-
-    // Sensors with activation constraints to allow clicks
+    // Sensors
     const sensors = useSensors(
         useSensor(MouseSensor, {
             activationConstraint: {
-                distance: 10, // Must move 10px to start drag
+                distance: 10,
             },
         }),
         useSensor(TouchSensor, {
             activationConstraint: {
                 delay: 250,
-                tolerance: 5, // Must hold for 250ms or move less than 5px before drag starts
+                tolerance: 5,
             },
         }),
     );
@@ -90,14 +86,7 @@ export const MoneyDragDrop = () => {
     const checkWinCondition = (amount: number) => {
         if (!success && targetAmount > 0 && Math.abs(amount - targetAmount) < 0.001) {
             setSuccess(true);
-
-            // Updates Stats
-            const newStreak = streak + 1;
-            setStreak(newStreak);
-            if (newStreak > bestStreak) {
-                setBestStreak(newStreak);
-                localStorage.setItem('money_bestStreak', newStreak.toString());
-            }
+            addSuccess();
 
             confetti({
                 particleCount: 150,
@@ -118,16 +107,16 @@ export const MoneyDragDrop = () => {
         const { active, over } = event;
 
         if (over && over.id === 'drop-zone') {
-            // Find denomination
             const denom = DENOMINATIONS.find(d => d.label === active.id);
             if (denom) {
-                // Add to table
                 const newItems = [...placedItems, denom];
                 setPlacedItems(newItems);
 
-                // Recalculate Total
                 const newTotal = newItems.reduce((acc, item) => acc + item.value, 0);
                 const roundedTotal = Math.round(newTotal * 100) / 100;
+
+                // For MoneyDragDrop, we only check for win, no "wrong" submit currently.
+                // If the user wants to add failure, we would need a "Submit" button.
                 checkWinCondition(roundedTotal);
             }
         }
@@ -135,18 +124,12 @@ export const MoneyDragDrop = () => {
 
     const handleReset = () => {
         setPlacedItems([]);
-        // Note: Resetting table doesn't break streak if they haven't won yet
-        // Only explicit failure would break streak, but here they just retry
     };
 
-    // Click Handlers
     const handleAddMoney = (denom: MoneyDenomination) => {
-        if (success) return; // Disable adding if already won
-
+        if (success) return;
         const newItems = [...placedItems, denom];
         setPlacedItems(newItems);
-
-        // Recalculate Total
         const newTotal = newItems.reduce((acc: number, item: MoneyDenomination) => acc + item.value, 0);
         const roundedTotal = Math.round(newTotal * 100) / 100;
         checkWinCondition(roundedTotal);
@@ -154,19 +137,14 @@ export const MoneyDragDrop = () => {
 
     const handleRemoveMoney = (indexToRemove: number) => {
         if (success) return;
-
         const newItems = placedItems.filter((_: MoneyDenomination, idx: number) => idx !== indexToRemove);
         setPlacedItems(newItems);
-
-        // Recalculate Total
         const newTotal = newItems.reduce((acc: number, item: MoneyDenomination) => acc + item.value, 0);
         const roundedTotal = Math.round(newTotal * 100) / 100;
         checkWinCondition(roundedTotal);
     };
 
-    // --- Sub-Components ---
-
-    // Draggable Source Item (Wallet)
+    // Sub-Components
     const DraggableMoney = ({ denom }: { denom: MoneyDenomination }) => {
         const { attributes, listeners, setNodeRef, transform } = useDraggable({
             id: denom.label,
@@ -178,7 +156,6 @@ export const MoneyDragDrop = () => {
             zIndex: 1000
         } : undefined;
 
-        // Custom class for size adjustment based on type
         const isBill = denom.type === 'bill';
 
         return (
@@ -188,7 +165,7 @@ export const MoneyDragDrop = () => {
                 {...listeners}
                 {...attributes}
                 className={`money-button ${isBill ? 'bill' : 'coin'}`}
-                title={`${denom.label} (Klicken zum Hinzufügen)`}
+                title={denom.label}
                 onClick={() => handleAddMoney(denom)}
             >
                 <img src={denom.image} alt={denom.label} className="wallet-money-image" />
@@ -197,7 +174,6 @@ export const MoneyDragDrop = () => {
         );
     };
 
-    // Droppable Target (Table)
     const DropZone = () => {
         const { setNodeRef, isOver } = useDroppable({
             id: 'drop-zone',
@@ -236,7 +212,6 @@ export const MoneyDragDrop = () => {
                             layout
                             onClick={() => handleRemoveMoney(idx)}
                             style={{ cursor: success ? 'default' : 'pointer' }}
-                            title="Klicken zum Entfernen"
                         >
                             <img
                                 src={item.image}
@@ -257,7 +232,6 @@ export const MoneyDragDrop = () => {
     return (
         <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
             <div className="playground">
-                {/* Left Sidebar: Wallet */}
                 <aside className="wallet-section">
                     <h2>
                         <span>👛</span> Dein Geldbeutel
@@ -271,9 +245,7 @@ export const MoneyDragDrop = () => {
                     </div>
                 </aside>
 
-                {/* Main Area */}
                 <main className="main-area">
-                    {/* Task Banner */}
                     <motion.div
                         className="task-banner"
                         initial={{ y: -20, opacity: 0 }}
@@ -284,30 +256,7 @@ export const MoneyDragDrop = () => {
                             <span className="target-price">{targetAmount.toFixed(2).replace('.', ',')} €</span>
                         </div>
 
-                        {/* Stats Row */}
-                        <div className="stats-row">
-                            <motion.div
-                                whileHover={{ scale: 1.05 }}
-                                className="stat-item"
-                            >
-                                <Trophy size={24} className="stat-icon trophy" />
-                                <span className="stat-label">Rekord</span>
-                                <span className="stat-value">{bestStreak}</span>
-                            </motion.div>
-
-                            <motion.div
-                                whileHover={{ scale: 1.05 }}
-                                className="stat-item"
-                            >
-                                <Flame size={24} className="stat-icon flame" />
-                                <span className="stat-label">Serie</span>
-                                <span className="stat-value">{streak}</span>
-                            </motion.div>
-                        </div>
-
                         <div className="task-status">
-                            {/* Current Amount Hidden for Challenge */}
-
                             {success && (
                                 <motion.div
                                     initial={{ scale: 0 }}
@@ -333,14 +282,12 @@ export const MoneyDragDrop = () => {
                         </div>
                     </motion.div>
 
-                    {/* Drop Zone */}
                     <DropZone />
                 </main>
 
                 <DragOverlay>
                     {activeId ? (
                         <div className="money-drag-preview">
-                            {/* Simple Preview */}
                             <img
                                 src={DENOMINATIONS.find(d => d.label === activeId)?.image}
                                 alt="preview"

@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { RotateCcw, CheckCircle2, Trophy, Flame, Plus } from 'lucide-react';
+import { RotateCcw, CheckCircle2, Plus } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useGamification } from '../../../hooks/useGamification';
 
-// --- Types (Re-using from original or defining if needed) ---
+// --- Types ---
 type MoneyType = 'bill' | 'coin';
 
 interface MoneyDenomination {
@@ -36,16 +37,10 @@ const generateRandomAmount = () => {
 };
 
 export const MoneyDragDropMobile = () => {
+    const { addSuccess } = useGamification();
     const [targetAmount, setTargetAmount] = useState<number>(() => generateRandomAmount());
     const [placedItems, setPlacedItems] = useState<MoneyDenomination[]>([]);
     const [success, setSuccess] = useState(false);
-
-    // Stats
-    const [streak, setStreak] = useState(0);
-    const [bestStreak, setBestStreak] = useState(() => {
-        const saved = localStorage.getItem('money_bestStreak');
-        return saved ? parseInt(saved) : 0;
-    });
 
     const generateNewTask = () => {
         setTargetAmount(generateRandomAmount());
@@ -56,12 +51,7 @@ export const MoneyDragDropMobile = () => {
     const checkWinCondition = (amount: number) => {
         if (!success && targetAmount > 0 && Math.abs(amount - targetAmount) < 0.001) {
             setSuccess(true);
-            const newStreak = streak + 1;
-            setStreak(newStreak);
-            if (newStreak > bestStreak) {
-                setBestStreak(newStreak);
-                localStorage.setItem('money_bestStreak', newStreak.toString());
-            }
+            addSuccess();
 
             confetti({
                 particleCount: 100,
@@ -102,10 +92,6 @@ export const MoneyDragDropMobile = () => {
                 initial={{ y: -20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
             >
-                <div className="mobile-stats">
-                    <div className="m-stat"><Trophy size={16} /> {bestStreak}</div>
-                    <div className="m-stat"><Flame size={16} /> {streak}</div>
-                </div>
                 <h2 className="m-task-title">Lege diesen Betrag:</h2>
                 <div className="m-target-price">{targetAmount.toFixed(2).replace('.', ',')} €</div>
 

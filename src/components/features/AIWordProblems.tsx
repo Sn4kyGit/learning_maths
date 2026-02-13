@@ -5,11 +5,15 @@ import { PREDEFINED_PROBLEMS } from '../../data/predefinedProblems';
 import { CheckCircle2, XCircle, RefreshCcw, ImageIcon, SendHorizonal, Star } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
+import { useGamification } from '../../hooks/useGamification';
 
 const POOL_SIZE = 10;
 const MIN_POOL_SIZE = 3;
 
 export const AIWordProblems = () => {
+    // Global State
+    const { addSuccess, addFailure } = useGamification();
+
     const [difficulty, setDifficulty] = useState<Difficulty>('medium');
     const [problem, setProblem] = useState<AIProblem | null>(null);
     const [loading, setLoading] = useState(false);
@@ -17,13 +21,7 @@ export const AIWordProblems = () => {
     const [status, setStatus] = useState<'idle' | 'correct' | 'wrong'>('idle');
     const [hasStarted, setHasStarted] = useState(false);
 
-    const [streak, setStreak] = useState(0);
-    const [bestStreak, setBestStreak] = useState<number>(() => {
-        const saved = localStorage.getItem('wordproblems_bestStreak');
-        return saved ? parseInt(saved) : 0;
-    });
-
-    // Problem Pool state - initialized with predefined problems
+    // Problem Pool state
     const [pool, setPool] = useState<Record<Difficulty, AIProblem[]>>({
         easy: [...PREDEFINED_PROBLEMS.easy],
         medium: [...PREDEFINED_PROBLEMS.medium],
@@ -53,7 +51,6 @@ export const AIWordProblems = () => {
         refillBackground();
     }, [pool]);
 
-    // Background refill check on mount
     useEffect(() => {
         refillPool('easy');
         refillPool('medium');
@@ -88,8 +85,8 @@ export const AIWordProblems = () => {
                     setProblem(newProblem);
                     setLoading(false);
                     refillPool(diff);
-                }).catch(error => {
-                    console.error("Failed to fetch emergency problem:", error);
+                }).catch((error: unknown) => {
+                    console.error("Failed to fetch emergency problem:", error instanceof Error ? error.message : String(error));
                     setLoading(false);
                 });
                 return currentPool;
@@ -104,27 +101,16 @@ export const AIWordProblems = () => {
         }
     };
 
-    // Dynamic Image URL based on the story
     const problemImage = useMemo(() => {
         if (!problem) return null;
-
-        // Use local image if ID exists (predefined problem)
         if (problem.id) {
-            // We only need to busting cache if the problem actually changes
             return `/images/problems/${problem.id}.jpg?v=${problem.id}`;
         }
-
-        return null; // No image for dynamic problems (or show a default placeholder if needed)
+        return null;
     }, [problem]);
 
     const triggerSuccess = () => {
-        const newStreak = streak + 1;
-        setStreak(newStreak);
-        if (newStreak > bestStreak) {
-            setBestStreak(newStreak);
-            localStorage.setItem('wordproblems_bestStreak', newStreak.toString());
-        }
-
+        addSuccess();
         confetti({
             particleCount: 120,
             spread: 80,
@@ -132,19 +118,26 @@ export const AIWordProblems = () => {
             colors: ['#6366f1', '#f59e0b', '#06b6d4', '#10b981']
         });
 
-        const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-        const audioCtx = new AudioContextClass();
-        const oscillator = audioCtx.createOscillator();
-        const gainNode = audioCtx.createGain();
-        oscillator.type = 'square';
-        oscillator.frequency.setValueAtTime(659.25, audioCtx.currentTime); // E5
-        oscillator.frequency.exponentialRampToValueAtTime(1318.51, audioCtx.currentTime + 0.15); // E6
-        gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
-        oscillator.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-        oscillator.start();
-        oscillator.stop(audioCtx.currentTime + 0.3);
+        // Simple audio feedback
+        try {
+            const AudioContextClass = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+            if (!AudioContextClass) return;
+
+            const audioCtx = new AudioContextClass();
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.type = 'square';
+            oscillator.frequency.setValueAtTime(659.25, audioCtx.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(1318.51, audioCtx.currentTime + 0.15);
+            gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + 0.3);
+        } catch {
+            console.warn("Audio feedback failed");
+        }
     };
 
     const handleCheck = () => {
@@ -155,7 +148,7 @@ export const AIWordProblems = () => {
             triggerSuccess();
         } else {
             setStatus('wrong');
-            setStreak(0);
+            addFailure();
         }
     };
 
@@ -195,9 +188,6 @@ export const AIWordProblems = () => {
                                     <span className="diff-label">
                                         {d === 'easy' ? 'Einfach' : d === 'medium' ? 'Mittel' : 'Schwer'}
                                     </span>
-                                    <span className="diff-desc">
-                                        {d === 'easy' ? '3 Zahlen' : d === 'medium' ? '4-6 Zahlen' : '6-8 Zahlen'}
-                                    </span>
                                 </button>
                             ))}
                         </div>
@@ -221,7 +211,6 @@ export const AIWordProblems = () => {
                         className="ai-card"
                     >
                         <div className="ai-content-layout">
-                            {/* Top Bar: Difficulty & Stats */}
                             <div className="ai-top-bar">
                                 <div className="difficulty-pills">
                                     {(['easy', 'medium', 'hard'] as Difficulty[]).map((d) => (
@@ -235,24 +224,10 @@ export const AIWordProblems = () => {
                                         </button>
                                     ))}
                                 </div>
-
-                                <div className="stats-group">
-                                    <div className="stat-pill" title="Rekord">
-                                        <span className="stat-icon">🏆</span>
-                                        <span className="stat-value">{bestStreak}</span>
-                                        <span className="stat-label">Rekord</span>
-                                    </div>
-                                    <div className="stat-pill" title="Aktuelle Serie">
-                                        <span className="stat-icon">🔥</span>
-                                        <span className="stat-value">{streak}</span>
-                                        <span className="stat-label">Serie</span>
-                                    </div>
-                                </div>
                             </div>
 
                             <div className="ai-split-view">
                                 <div className="ai-reading-area">
-                                    {/* The "Story Card" - A quiet zone for reading */}
                                     <div className="problem-card">
                                         <div className="problem-story">
                                             {problem?.story}
@@ -262,7 +237,6 @@ export const AIWordProblems = () => {
                                         </h2>
                                     </div>
 
-                                    {/* Interaction Row - Unified Split Input */}
                                     <div className="solution-area">
                                         <h3 className="solution-label">Gib die Lösung ein:</h3>
                                         <div className="unified-input-group">
@@ -302,7 +276,6 @@ export const AIWordProblems = () => {
                                         </div>
                                     </div>
 
-                                    {/* Status Message */}
                                     <div className="status-feedback">
                                         <AnimatePresence>
                                             {status === 'correct' && (

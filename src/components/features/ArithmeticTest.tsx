@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
-import { RefreshCcw, CheckCircle2, Trophy, Flame } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import { RefreshCcw, CheckCircle2 } from 'lucide-react';
 import { GridCalculator } from './GridCalculator';
 import confetti from 'canvas-confetti';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useGamification } from '../../hooks/useGamification';
 
 // --- Types ---
 interface Task {
@@ -14,6 +15,9 @@ interface Task {
 }
 
 export const ArithmeticTest = () => {
+    // Global State
+    const { addSuccess, addFailure } = useGamification();
+
     // State
     const [task, setTask] = useState<Task>(() => {
         const isAddition = Math.random() > 0.5;
@@ -30,11 +34,6 @@ export const ArithmeticTest = () => {
             type: 'money'
         };
     });
-    const [streak, setStreak] = useState(0);
-    const [bestStreak, setBestStreak] = useState<number>(() => {
-        const saved = localStorage.getItem('arithmetic_bestStreak');
-        return saved ? parseInt(saved) : 0;
-    });
     const [showSuccess, setShowSuccess] = useState(false);
 
     // Task Generation Logic
@@ -42,9 +41,8 @@ export const ArithmeticTest = () => {
         const isAddition = Math.random() > 0.5;
         let n1, n2;
 
-        // Generate values in Cents to avoid floating point issues
         if (isAddition) {
-            n1 = Math.floor(Math.random() * 80000) + 1000; // 10.00 to 810.00
+            n1 = Math.floor(Math.random() * 80000) + 1000;
             n2 = Math.floor(Math.random() * (90000 - n1)) + 1000;
         } else {
             n1 = Math.floor(Math.random() * 80000) + 2000;
@@ -63,19 +61,8 @@ export const ArithmeticTest = () => {
         setShowSuccess(false);
     }, []);
 
-    // Initial Load - No longer needed as we initialize in useState
-    // but we can keep it if we want to ensure any other setup
-    useEffect(() => {
-        // Clear success state on mount if needed
-    }, []);
-
     const handleSuccess = () => {
-        const newStreak = streak + 1;
-        setStreak(newStreak);
-        if (newStreak > bestStreak) {
-            setBestStreak(newStreak);
-            localStorage.setItem('arithmetic_bestStreak', newStreak.toString());
-        }
+        addSuccess();
         setShowSuccess(true);
         confetti({
             particleCount: 100,
@@ -86,7 +73,7 @@ export const ArithmeticTest = () => {
     };
 
     const handleFailure = () => {
-        setStreak(0);
+        addFailure();
     };
 
     return (
@@ -103,38 +90,14 @@ export const ArithmeticTest = () => {
                 >
                     Löse die Aufgaben ordentlich wie im Heft! 📝
                 </motion.h2>
-
-                {/* Stats Row */}
-                <div className="at-stats-row">
-                    <motion.div
-                        whileHover={{ scale: 1.05 }}
-                        className="at-stat-card record"
-                    >
-                        <Trophy size={24} className="at-icon record" />
-                        <span className="at-label">REKORD</span>
-                        <span className="at-value">{bestStreak}</span>
-                    </motion.div>
-
-                    <motion.div
-                        whileHover={{ scale: 1.05 }}
-                        className="at-stat-card streak"
-                    >
-                        <Flame size={24} className="at-icon streak" />
-                        <span className="at-label">SERIE</span>
-                        <span className="at-value">{streak}</span>
-                    </motion.div>
-                </div>
             </div>
 
-            {/* Actions / Floating Elements */}
+            {/* Actions */}
             <div className="at-actions">
                 <button
-                    onClick={() => {
-                        setStreak(0);
-                        generateTask();
-                    }}
+                    onClick={generateTask}
                     className="at-refresh-btn"
-                    title="Neue Aufgabe (verliert Serie)"
+                    title="Neue Aufgabe"
                 >
                     <RefreshCcw size={20} />
                 </button>

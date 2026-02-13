@@ -1,23 +1,19 @@
 import { useState, useMemo, useCallback } from 'react';
 import type { AIProblem, Difficulty } from '../../../services/OpenRouterService';
 import { PREDEFINED_PROBLEMS } from '../../../data/predefinedProblems';
-import { RefreshCcw, Star, SendHorizonal, XCircle, Trophy, Flame } from 'lucide-react';
+import { RefreshCcw, Star, SendHorizonal, XCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
+import { useGamification } from '../../../hooks/useGamification';
 
 export const AIWordProblemsMobile = () => {
-    const [difficulty] = useState<Difficulty>('medium');
+    const { addSuccess, addFailure } = useGamification();
+    const [difficulty, setDifficulty] = useState<Difficulty>('medium');
     const [problem, setProblem] = useState<AIProblem | null>(null);
     const [loading, setLoading] = useState(false);
     const [userInput, setUserInput] = useState('');
     const [status, setStatus] = useState<'idle' | 'correct' | 'wrong'>('idle');
     const [hasStarted, setHasStarted] = useState(false);
-
-    const [streak, setStreak] = useState(0);
-    const [bestStreak, setBestStreak] = useState<number>(() => {
-        const saved = localStorage.getItem('wordproblems_bestStreak');
-        return saved ? parseInt(saved) : 0;
-    });
 
     const fetchNewProblem = useCallback(async (diff: Difficulty = difficulty) => {
         setHasStarted(true);
@@ -25,7 +21,6 @@ export const AIWordProblemsMobile = () => {
         setUserInput('');
         setLoading(true);
 
-        // Try to get from predefined first if any left, else Generate
         try {
             const predefined = PREDEFINED_PROBLEMS[diff];
             const randomIndex = Math.floor(Math.random() * predefined.length);
@@ -43,12 +38,7 @@ export const AIWordProblemsMobile = () => {
         const val = parseFloat(userInput.replace(',', '.'));
         if (Math.abs(val - problem.solution) < 0.01) {
             setStatus('correct');
-            const newStreak = streak + 1;
-            setStreak(newStreak);
-            if (newStreak > bestStreak) {
-                setBestStreak(newStreak);
-                localStorage.setItem('wordproblems_bestStreak', newStreak.toString());
-            }
+            addSuccess();
             confetti({
                 particleCount: 80,
                 spread: 50,
@@ -56,7 +46,7 @@ export const AIWordProblemsMobile = () => {
             });
         } else {
             setStatus('wrong');
-            setStreak(0);
+            addFailure();
         }
     };
 
@@ -73,7 +63,10 @@ export const AIWordProblemsMobile = () => {
                     {(['easy', 'medium', 'hard'] as Difficulty[]).map((d) => (
                         <button
                             key={d}
-                            onClick={() => fetchNewProblem(d)}
+                            onClick={() => {
+                                setDifficulty(d);
+                                fetchNewProblem(d);
+                            }}
                             className={`m-diff-card ${d}`}
                         >
                             <div className="m-stars">
@@ -93,10 +86,6 @@ export const AIWordProblemsMobile = () => {
         <div className="mobile-feature-container">
             {/* Minimal Header */}
             <div className="m-ai-top-bar">
-                <div className="m-stats">
-                    <div className="m-stat"><Trophy size={14} /> {bestStreak}</div>
-                    <div className="m-stat"><Flame size={14} /> {streak}</div>
-                </div>
                 <button onClick={() => setHasStarted(false)} className="m-back-btn">Abbrechen</button>
             </div>
 
