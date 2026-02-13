@@ -90,9 +90,6 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ onClose, isModal }) =>
                 )}
             </div>
 
-            <div className="lb-footer-hint">
-                Synchronisiert mit Vercel KV ⚡️
-            </div>
         </motion.div>
     );
 
