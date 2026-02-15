@@ -6,6 +6,7 @@ import { ArithmeticTest } from './components/features/ArithmeticTest';
 import { AIWordProblems } from './components/features/AIWordProblems';
 import { WelcomeScreen } from './components/features/WelcomeScreen';
 import { Leaderboard } from './components/features/Leaderboard';
+import { GameOverScreen } from './components/features/GameOverScreen';
 import { GamificationProvider } from './context/GamificationContext';
 import { useGamification } from './hooks/useGamification';
 import { Analytics } from '@vercel/analytics/react';
@@ -25,7 +26,7 @@ function AppContent() {
   const [activeTab, setActiveTab] = useState<Tab>('supermarket');
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const { isMobile } = useDevice();
-  const { points, lives } = useGamification();
+  const { points, lives, gameOver } = useGamification();
 
   useEffect(() => {
     if (heroName) {
@@ -158,6 +159,7 @@ function AppContent() {
             onClose={() => setShowLeaderboard(false)}
           />
         )}
+        {gameOver && <GameOverScreen />}
       </AnimatePresence>
       <Analytics />
     </div>

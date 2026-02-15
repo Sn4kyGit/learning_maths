@@ -41,10 +41,8 @@ export default async function handler(req: Request) {
                 return new Response('Invalid data', { status: 400 });
             }
 
-            // Add to sorted set (replaces if exists and higher)
-            // Actually ZADD by default overwrites. 
-            // We use ZADD LEADERBOARD_KEY score name
-            await kv.zadd(LEADERBOARD_KEY, { score, member: name });
+            // Add to sorted set — GT flag ensures only HIGHER scores replace existing ones
+            await kv.zadd(LEADERBOARD_KEY, { gt: true }, { score, member: name });
 
             return new Response('Success', { status: 200 });
         }

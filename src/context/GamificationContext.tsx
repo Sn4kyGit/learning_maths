@@ -1,57 +1,63 @@
 import { GamificationContext } from './GamificationContextType';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { leaderboardService } from '../services/LeaderboardService';
 
 export const GamificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [points, setPoints] = useState(() => {
-        const saved = localStorage.getItem('global_points');
-        return saved ? parseInt(saved) : 0;
-    });
-    const [lives, setLives] = useState(() => {
-        const saved = localStorage.getItem('global_lives');
-        return saved ? parseInt(saved) : 5;
-    });
-    const [streak, setStreak] = useState(() => {
-        const saved = localStorage.getItem('global_streak');
-        return saved ? parseInt(saved) : 0;
-    });
+    const [points, setPoints] = useState(0);
+    const [lives, setLives] = useState(5);
+    const [streak, setStreak] = useState(0);
+    const [gameOver, setGameOver] = useState(false);
 
     const heroName = localStorage.getItem('heroName');
 
-    // Persist to local storage
-    useEffect(() => {
-        localStorage.setItem('global_points', points.toString());
-        localStorage.setItem('global_lives', lives.toString());
-        localStorage.setItem('global_streak', streak.toString());
-
-        // Sync with Vercel KV if hero name exists
-        if (heroName) {
-            leaderboardService.updateScore(heroName, points);
+    const submitScore = useCallback((finalPoints: number) => {
+        if (heroName && finalPoints > 0) {
+            leaderboardService.updateScore(heroName, finalPoints);
         }
-    }, [points, lives, streak, heroName]);
+    }, [heroName]);
 
-    const addSuccess = () => {
+    const addSuccess = useCallback(() => {
+        if (gameOver) return;
         setPoints(p => p + 1);
-        const newStreak = streak + 1;
-        setStreak(newStreak);
+        setStreak(s => {
+            const newStreak = s + 1;
+            // Bonus: Every 3-streak gives a life back
+            if (newStreak % 3 === 0) {
+                setLives(l => Math.min(5, l + 1));
+            }
+            return newStreak;
+        });
+    }, [gameOver]);
 
-        // Bonus: Every 3-streak gives a life back
-        if (newStreak % 3 === 0 && lives < 5) {
-            setLives(l => l + 1);
-        }
-    };
-
-    const addFailure = () => {
+    const addFailure = useCallback(() => {
+        if (gameOver) return;
         setPoints(p => Math.max(0, p - 1));
-        setLives(l => Math.max(0, l - 1));
         setStreak(0);
-    };
+        setLives(prev => {
+            const newLives = Math.max(0, prev - 1);
+            if (newLives === 0) {
+                setGameOver(true);
+                // Submit score when game ends
+                setPoints(currentPoints => {
+                    submitScore(currentPoints);
+                    return currentPoints;
+                });
+            }
+            return newLives;
+        });
+    }, [gameOver, submitScore]);
+
+    const resetGame = useCallback(() => {
+        setPoints(0);
+        setLives(5);
+        setStreak(0);
+        setGameOver(false);
+    }, []);
 
     return (
-        <GamificationContext.Provider value={{ points, lives, streak, addSuccess, addFailure }}>
+        <GamificationContext.Provider value={{ points, lives, streak, gameOver, addSuccess, addFailure, resetGame }}>
             {children}
         </GamificationContext.Provider>
     );
 };
-

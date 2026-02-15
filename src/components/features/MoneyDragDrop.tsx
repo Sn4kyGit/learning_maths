@@ -53,7 +53,7 @@ const generateRandomAmount = () => {
 
 export const MoneyDragDrop = () => {
     // Global State
-    const { addSuccess } = useGamification();
+    const { addSuccess, addFailure } = useGamification();
 
     // Game State
     const [targetAmount, setTargetAmount] = useState<number>(() => generateRandomAmount());
@@ -120,6 +120,7 @@ export const MoneyDragDrop = () => {
 
     const handleReset = () => {
         setPlacedItems([]);
+        addFailure();
     };
 
     const handleAddMoney = (denom: MoneyDenomination) => {
