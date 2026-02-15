@@ -41,8 +41,6 @@ export const MoneyDragDropMobile = () => {
     const [placedItems, setPlacedItems] = useState<MoneyDenomination[]>([]);
     const [success, setSuccess] = useState(false);
 
-    // Calculate current total from placed items
-    const currentTotal = placedItems.reduce((acc, item) => acc + item.value, 0);
 
     // Synchronous win check — same pattern as desktop version
     const checkWinCondition = useCallback((amountCents: number) => {
@@ -96,15 +94,6 @@ export const MoneyDragDropMobile = () => {
                 <h2 className="m-task-title">Lege diesen Betrag:</h2>
                 <div className="m-target-price">{(targetAmount / 100).toFixed(2).replace('.', ',')} €</div>
 
-                {/* Current total feedback */}
-                <div className="m-current-total" style={{
-                    fontSize: '0.9rem',
-                    color: currentTotal > targetAmount ? '#fca5a5' : 'rgba(255,255,255,0.7)',
-                    marginTop: '4px',
-                    fontWeight: 600
-                }}>
-                    Aktuell: {(currentTotal / 100).toFixed(2).replace('.', ',')} €
-                </div>
 
                 <div className="m-status-area">
                     {success && (
