@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { RotateCcw, CheckCircle2, Plus } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -41,14 +41,15 @@ export const MoneyDragDropMobile = () => {
     const [placedItems, setPlacedItems] = useState<MoneyDenomination[]>([]);
     const [success, setSuccess] = useState(false);
 
-    const generateNewTask = () => {
-        setTargetAmount(generateRandomAmount());
-        setPlacedItems([]);
-        setSuccess(false);
-    };
+    // Calculate current total from placed items
+    const currentTotal = placedItems.reduce((acc, item) => acc + item.value, 0);
 
-    const checkWinCondition = (amountCents: number) => {
-        if (!success && targetAmount > 0 && amountCents === targetAmount) {
+    // Check win condition whenever placedItems or targetAmount changes
+    useEffect(() => {
+        if (success) return; // Already won
+
+        if (targetAmount > 0 && currentTotal === targetAmount) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setSuccess(true);
             addSuccess();
 
@@ -59,22 +60,24 @@ export const MoneyDragDropMobile = () => {
                 colors: ['#6366f1', '#f59e0b', '#06b6d4', '#10b981']
             });
         }
+    }, [placedItems, targetAmount, success, addSuccess, currentTotal]); // Dependencies
+
+    const generateNewTask = () => {
+        const newAmount = generateRandomAmount();
+        console.log('Generating new task. New Target:', newAmount);
+        setTargetAmount(newAmount);
+        setPlacedItems([]);
+        setSuccess(false);
     };
 
     const handleAddMoney = (denom: MoneyDenomination) => {
         if (success) return;
-        const newItems = [...placedItems, denom];
-        setPlacedItems(newItems);
-        const newTotalCents = newItems.reduce((acc, item) => acc + item.value, 0);
-        checkWinCondition(newTotalCents);
+        setPlacedItems(prev => [...prev, denom]);
     };
 
     const handleRemoveMoney = (indexToRemove: number) => {
         if (success) return;
-        const newItems = placedItems.filter((_, idx) => idx !== indexToRemove);
-        setPlacedItems(newItems);
-        const newTotalCents = newItems.reduce((acc, item) => acc + item.value, 0);
-        checkWinCondition(newTotalCents);
+        setPlacedItems(prev => prev.filter((_, idx) => idx !== indexToRemove));
     };
 
     const handleReset = () => {
@@ -91,6 +94,11 @@ export const MoneyDragDropMobile = () => {
             >
                 <h2 className="m-task-title">Lege diesen Betrag:</h2>
                 <div className="m-target-price">{(targetAmount / 100).toFixed(2).replace('.', ',')} €</div>
+
+                {/* Optional: Show current total for feedback/debugging */}
+                <div className="m-current-total" style={{ fontSize: '0.9rem', color: currentTotal > targetAmount ? '#ef4444' : '#64748b', marginTop: '4px' }}>
+                    Aktuell: {(currentTotal / 100).toFixed(2).replace('.', ',')} €
+                </div>
 
                 <div className="m-status-area">
                     {success && (
